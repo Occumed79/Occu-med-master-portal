@@ -1,0 +1,184 @@
+Replit Prompt
+
+Build a premium futuristic master homepage portal for Occu-Med that acts as a single secure entry point to existing deployed portals.
+
+Use my uploaded galaxy artwork as the homepage visual. Do not replace or regenerate it. Overlay clickable hotspot regions on top of the existing planets and black hole.
+
+Core purpose
+
+This is not meant to rebuild the other tools.
+It is a master homepage / launch portal that links users to already deployed Occu-Med portals.
+
+The user will upload the galaxy artwork manually.
+Use that uploaded image directly as the homepage visual.
+Do not generate or replace the artwork.
+
+Visual direction
+
+The homepage must feel:
+
+premium
+futuristic
+elegant
+cinematic
+polished
+impressive
+
+Use the uploaded galaxy artwork as the main composition, then add lightweight effects:
+
+ star glistening/twinkling in the background
+planets always visible
+planets more luminous overall
+stronger glow on hover
+subtle premium ambient motion only
+no clutter
+no large tooltips
+no overcomplicated UI
+Startup behavior
+
+On first load:
+
+the Occu-Med logo glows once
+leave a simple hook in the admin panel so the owner can later upload and connect their own startup sound file manually
+
+Planet labels
+
+Use one short glowing label only per clickable object.
+
+Assignments:
+
+Black hole → Executive
+Colorful striped planet → Operations
+Blue Saturn → Network
+Red/orange planet → Admin
+Brown planet near yellow Saturn → PR
+Yellow Saturn → Exam QA
+Dark brown planet → Advancement
+
+Labels should appear directly on the planet in an elegant glowing style.
+
+Click behavior
+
+Each celestial object is clickable.
+
+When clicked:
+
+if the user has permission, open the assigned external portal URL
+if the user does not have permission, nothing happens
+all planets must remain visible at all times
+do not hide unauthorized planets
+unauthorized planets should still be present visually
+clicking unauthorized planets should simply do nothing
+optionally allow a very subtle locked or inactive state, but keep it elegant and minimal
+Permissions model
+
+This portal must be invite-based and permissions-based.
+
+Admin must be able to:
+
+invite users by email
+manage users
+assign which portals each user can access
+update portal access later
+
+Keep roles simple:
+
+Admin
+User
+
+But permissions must be portal-specific:
+
+Executive
+Operations
+Network
+Admin
+PR
+Exam QA
+Advancement
+
+Important permission rule
+
+All planets are always visible.
+Permission only controls whether the click works.
+
+Existing deployed portals
+
+This homepage should link out to existing deployed apps.
+Do not rebuild those apps here.
+
+Create a simple config object for each portal containing:
+
+label
+permission key
+external URL
+hover glow color
+hotspot coordinates over uploaded image
+Technical stack
+
+Use:
+
+React
+Vite
+Tailwind CSS
+Framer Motion
+Implementation approach
+
+Keep it efficient and credit-conscious:
+
+render the uploaded artwork as the main hero image
+overlay interactive hotspots over the planets and black hole
+use CSS and animation for glow and shimmer
+keep performance smooth
+
+Required features
+
+Build:
+
+homepage using uploaded artwork
+luminous hover glow for each planet
+glowing one-word labels
+external portal launch links
+Supabase Auth
+invite-based access
+portal-specific permissions
+admin user-management page
+protected click behavior based on permissions
+hook for owner-supplied startup audio later
+Admin page
+
+Create a clean admin management page where Admin can:
+
+view users
+invite users by email
+toggle access for each portal
+save permission changes
+UX quality bar
+Paste the render URL for each sepcific portal
+
+This should feel like:
+
+an executive sci-fi command portal
+beautiful
+simple
+powerful
+memorable
+
+Avoid:
+
+clutter
+large descriptions
+complex cards
+game-like overload
+tacky animation
+Deliverables
+
+Generate:
+
+homepage
+hotspot overlay system
+glowing hover states
+auth structure
+permissions logic
+admin management page
+reusable portal config
+setup instructions for Supabase and external URLs
