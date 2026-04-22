@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import { existsSync } from "node:fs";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const rawPort = process.env.PORT;
@@ -17,6 +18,15 @@ const port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
+
+const assetCandidates = [
+  path.resolve(import.meta.dirname, "..", "attached_assets"),
+  path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
+];
+
+const attachedAssetsPath =
+  assetCandidates.find((candidate) => existsSync(candidate)) ??
+  assetCandidates[0];
 
 const basePath = process.env.BASE_PATH;
 
@@ -49,7 +59,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
-      "@assets": path.resolve(import.meta.dirname, "..", "attached_assets"),
+      "@assets": attachedAssetsPath,
     },
     dedupe: ["react", "react-dom"],
   },
