@@ -71,7 +71,7 @@
   --input: 230 40% 15%;
   --ring: 210 100% 60%;
   --radius: 0.5rem;
-  
+
   --app-font-sans: 'Inter', system-ui, sans-serif;
   --app-font-mono: 'JetBrains Mono', monospace;
 }
@@ -82,6 +82,9 @@
   }
   body {
     @apply font-sans bg-background text-foreground antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 }
 
@@ -96,9 +99,34 @@
   text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
 }
 
+/* ── Stars ─────────────────────────────────────────────── */
+
 @keyframes twinkle {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: 0.12; transform: scale(0.85); }
+  50%       { opacity: 0.75; transform: scale(1.05); }
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0.15;
+    transform: scale(0.7);
+    box-shadow: 0 0 2px rgba(255,255,255,0.2);
+  }
+  45%, 55% {
+    opacity: 1;
+    transform: scale(1.7);
+    box-shadow:
+      0 0 6px 2px rgba(255,255,255,0.95),
+      0 0 14px 4px rgba(200,225,255,0.6),
+      0 -9px 0 0 rgba(220,235,255,0.45),
+      0  9px 0 0 rgba(220,235,255,0.45),
+      -9px 0 0 0 rgba(220,235,255,0.45),
+       9px 0 0 0 rgba(220,235,255,0.45),
+      0 -6px 0 0 rgba(255,255,255,0.25),
+      0  6px 0 0 rgba(255,255,255,0.25),
+      -6px 0 0 0 rgba(255,255,255,0.25),
+       6px 0 0 0 rgba(255,255,255,0.25);
+  }
 }
 
 .star {
@@ -107,4 +135,145 @@
   border-radius: 50%;
   animation: twinkle var(--duration, 3s) infinite ease-in-out;
   animation-delay: var(--delay, 0s);
+  will-change: opacity, transform;
+}
+
+.star-bright {
+  animation-name: sparkle !important;
+}
+
+/* ── Ambient planet bloom ──────────────────────────────── */
+
+@keyframes ambientBloom {
+  0%, 100% { opacity: 0.22; transform: scale(1); }
+  50%       { opacity: 0.52; transform: scale(1.18); }
+}
+
+.ambient-bloom {
+  animation: ambientBloom var(--bloom-duration, 4.5s) infinite ease-in-out;
+  animation-delay: var(--bloom-delay, 0s);
+  will-change: opacity, transform;
+}
+
+/* ── Comet intro ───────────────────────────────────────── */
+
+@keyframes cometFly {
+  0%   { transform: translate(-320px, 0); opacity: 0; }
+  6%   { opacity: 1; }
+  94%  { opacity: 1; }
+  100% { transform: translate(calc(100vw + 320px), 30vh); opacity: 0; }
+}
+
+.comet-head {
+  position: absolute;
+  /* starts at 35% from top; midpoint of journey lands at exactly 50% */
+  top: calc(50% - 15vh);
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, #c8e8ff 55%, transparent 100%);
+  box-shadow:
+    0 0 8px 3px rgba(210,235,255,0.95),
+    0 0 22px 8px rgba(180,215,255,0.6),
+    0 0 50px 18px rgba(150,195,255,0.3);
+  animation: cometFly 2.4s cubic-bezier(0.28, 0, 0.72, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.comet-head::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  width: 300px;
+  height: 3px;
+  transform-origin: right center;
+  transform: translateY(-50%) rotate(-8deg);
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(170,205,255,0.12) 35%,
+    rgba(210,230,255,0.55) 75%,
+    rgba(255,255,255,0.9) 100%
+  );
+  border-radius: 3px;
+  filter: blur(1.2px);
+}
+
+/* comet sparkle burst at the head */
+.comet-head::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(200,225,255,0.4) 40%, transparent 70%);
+  filter: blur(3px);
+}
+
+/* ── Center OCCU-MED logo ──────────────────────────────── */
+
+.center-logo {
+  font-size: clamp(1.8rem, 4.5vw, 4rem);
+  font-weight: 800;
+  letter-spacing: 0.55em;
+  text-transform: uppercase;
+  color: #ffffff;
+  font-family: 'Inter', system-ui, sans-serif;
+  will-change: text-shadow, opacity;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.logo-hidden {
+  opacity: 0;
+  text-shadow: none;
+  transition: text-shadow 0.5s ease, opacity 0.5s ease;
+}
+
+.logo-glow {
+  opacity: 0.65;
+  text-shadow:
+    0 0 6px rgba(190,215,255,0.7),
+    0 0 14px rgba(160,200,255,0.5),
+    0 0 28px rgba(130,180,255,0.3);
+  transition: text-shadow 0.35s ease, opacity 0.35s ease;
+}
+
+.logo-flare {
+  opacity: 1;
+  text-shadow:
+    0 0 8px  #fff,
+    0 0 18px #fff,
+    0 0 36px rgba(160,200,255,1),
+    0 0 70px rgba(120,170,255,0.9),
+    0 0 120px rgba(90,150,255,0.7),
+    0 0 200px rgba(60,120,255,0.45);
+  transition: text-shadow 0.22s ease, opacity 0.22s ease;
+}
+
+.logo-persist {
+  opacity: 1;
+  text-shadow:
+    0 0 5px  rgba(210,230,255,0.8),
+    0 0 12px rgba(180,210,255,0.55),
+    0 0 26px rgba(150,190,255,0.35),
+    0 0 50px rgba(120,170,255,0.18);
+  transition: text-shadow 1s ease, opacity 1s ease;
+}
+
+/* ── Portal hover labels ───────────────────────────────── */
+
+.portal-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  transition: opacity 0.45s ease, transform 0.45s ease, letter-spacing 0.45s ease;
+}
+
+.group:hover .portal-label {
+  letter-spacing: 0.32em;
 }
