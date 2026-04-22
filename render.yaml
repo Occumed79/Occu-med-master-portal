@@ -2,7 +2,7 @@ services:
   - type: web
     name: occu-med-portal
     env: static
-    buildCommand: npm install -g pnpm@latest && pnpm install --no-frozen-lockfile && cd occu-med-portal && pnpm install --no-frozen-lockfile && pnpm run build
+    buildCommand: npm install -g pnpm@latest && pnpm install --frozen-lockfile && cd occu-med-portal && pnpm run build
     staticPublishPath: occu-med-portal/dist/public
     envVars:
       - key: PORT
