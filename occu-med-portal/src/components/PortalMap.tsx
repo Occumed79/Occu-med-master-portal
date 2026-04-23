@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { PORTALS } from '../lib/config';
-import bgImage from '@assets/ChatGPT_Image_Apr_19,_2026,_07_56_01_PM_copy_2_1776690199128.png';
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'wouter';
 import { useEffect, useState } from 'react';
@@ -22,6 +21,13 @@ const stars = Array.from({ length: 220 }, (_, i) => ({
   delay: (i % 17) * 0.19,
   bright: i % 9 === 0,
 }));
+
+const nebulae = [
+  { id: 'n1', x: '16%', y: '24%', size: '34vmin', color: 'rgba(83, 199, 255, 0.16)' },
+  { id: 'n2', x: '79%', y: '28%', size: '28vmin', color: 'rgba(129, 114, 255, 0.14)' },
+  { id: 'n3', x: '24%', y: '78%', size: '42vmin', color: 'rgba(48, 220, 208, 0.13)' },
+  { id: 'n4', x: '84%', y: '76%', size: '38vmin', color: 'rgba(255, 107, 64, 0.12)' },
+];
 
 type LogoState = 'hidden' | 'glow' | 'flare' | 'persist';
 
@@ -136,7 +142,7 @@ export default function PortalMap() {
           <motion.button
             key={portal.id}
             aria-label={`${portal.label} portal`}
-            className={`group absolute z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none ${hasAccess ? 'cursor-pointer' : 'cursor-default'}`}
+            className={`group absolute z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none ${hasAccess ? 'cursor-pointer' : 'cursor-default'} ${hasAccess ? '' : 'opacity-60'}`}
             style={{
               left: `${portal.x}%`,
               top: `${portal.y}%`,
@@ -163,7 +169,7 @@ export default function PortalMap() {
             />
 
             <span
-              className="absolute rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+              className="absolute inset-[2%] rounded-full opacity-75 transition-opacity duration-500 group-hover:opacity-100"
               style={{
                 inset: '-16%',
                 boxShadow: `0 0 54px 14px ${portal.color}98, inset 0 0 28px ${portal.color}55`,
@@ -183,6 +189,8 @@ export default function PortalMap() {
           </motion.button>
         );
       })}
+
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_44%,rgba(0,0,0,0.64)_100%)]" />
     </div>
   );
 }
