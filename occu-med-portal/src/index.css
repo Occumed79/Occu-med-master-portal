@@ -99,11 +99,12 @@
   text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
 }
 
+
 /* ── Stars ─────────────────────────────────────────────── */
 
 @keyframes twinkle {
-  0%, 100% { opacity: 0.12; transform: scale(0.85); }
-  50%       { opacity: 0.75; transform: scale(1.05); }
+  0%, 100% { opacity: 0.14; transform: scale(0.84); }
+  50%       { opacity: 0.72; transform: scale(1.05); }
 }
 
 @keyframes sparkle {
@@ -145,8 +146,8 @@
 /* ── Ambient planet bloom ──────────────────────────────── */
 
 @keyframes ambientBloom {
-  0%, 100% { opacity: 0.22; transform: scale(1); }
-  50%       { opacity: 0.52; transform: scale(1.18); }
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.16); }
 }
 
 .ambient-bloom {
@@ -161,7 +162,7 @@
   0%   { transform: translate(-320px, 0); opacity: 0; }
   6%   { opacity: 1; }
   94%  { opacity: 1; }
-  100% { transform: translate(calc(100vw + 320px), 30vh); opacity: 0; }
+  100% { transform: translate(calc(100vw + 320px), 34vh); opacity: 0; }
 }
 
 .comet-head {
@@ -265,15 +266,20 @@
 /* ── Portal hover labels ───────────────────────────────── */
 
 .portal-label {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-size: clamp(9px, 0.86vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   font-family: 'JetBrains Mono', monospace;
   white-space: nowrap;
+  padding: 0.32rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(235, 244, 255, 0.28);
+  background: linear-gradient(120deg, rgba(12, 16, 34, 0.78), rgba(13, 10, 28, 0.5));
+  backdrop-filter: blur(4px);
   transition: opacity 0.45s ease, transform 0.45s ease, letter-spacing 0.45s ease;
 }
 
 .group:hover .portal-label {
-  letter-spacing: 0.32em;
+  letter-spacing: 0.34em;
 }

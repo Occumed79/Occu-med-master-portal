@@ -13,15 +13,14 @@ function checkFirstVisit() {
   return params.get('skipIntro') !== '1' && localStorage.getItem(INTRO_KEY) !== 'true';
 }
 
-// 220 stars distributed across the canvas
 const stars = Array.from({ length: 220 }, (_, i) => ({
   id: i,
   left: Number(((i * 37.3 + (i % 7) * 13.7) % 100).toFixed(2)),
-  top:  Number(((i * 61.7 + (i % 5) * 17.3) % 100).toFixed(2)),
+  top: Number(((i * 61.7 + (i % 5) * 17.3) % 100).toFixed(2)),
   size: 0.8 + (i % 5) * 0.45,
-  duration: 2.5 + (i % 9) * 0.55,
+  duration: 2.7 + (i % 9) * 0.52,
   delay: (i % 17) * 0.19,
-  bright: i % 9 === 0, // every 9th star gets cross-sparkle
+  bright: i % 9 === 0,
 }));
 
 type LogoState = 'hidden' | 'glow' | 'flare' | 'persist';
@@ -38,9 +37,9 @@ export default function PortalMap() {
     if (!introActive) return;
 
     const timers = [
-      setTimeout(() => setLogoState('glow'),    950),
-      setTimeout(() => setLogoState('flare'),  1200),
-      setTimeout(() => setLogoState('persist'), 2100),
+      setTimeout(() => setLogoState('glow'), 900),
+      setTimeout(() => setLogoState('flare'), 1250),
+      setTimeout(() => setLogoState('persist'), 2200),
       setTimeout(() => {
         localStorage.setItem(INTRO_KEY, 'true');
         setIntroActive(false);
@@ -57,51 +56,46 @@ export default function PortalMap() {
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black">
-
-      {/* Background — no extra filters that soften the image */}
       <img
         src={bgImage}
         alt="Occu-Med galaxy portal"
         className="absolute inset-0 h-full w-full object-cover"
-        style={{ imageRendering: 'auto', transform: 'translateZ(0)' }}
+        style={{ imageRendering: 'high-quality', transform: 'translateZ(0)', filter: 'contrast(1.03) saturate(1.04)' }}
       />
 
-      {/* Vignette */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.5)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.48)_100%)]" />
 
-      {/* Stars */}
-      <div className="pointer-events-none absolute inset-0">
+      <div className="pointer-events-none absolute inset-0 mix-blend-screen">
         {stars.map((star) => (
           <div
             key={star.id}
             className={star.bright ? 'star star-bright' : 'star'}
             style={{
               left: `${star.left}%`,
-              top:  `${star.top}%`,
-              width:  `${star.size}px`,
+              top: `${star.top}%`,
+              width: `${star.size}px`,
               height: `${star.size}px`,
               '--duration': `${star.duration}s`,
-              '--delay':    `${star.delay}s`,
+              '--delay': `${star.delay}s`,
             } as React.CSSProperties}
           />
         ))}
       </div>
 
-      {/* Comet intro — only rendered on first visit */}
       {introActive && (
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="comet-head" />
         </div>
       )}
 
-      {/* Center OCCU-MED logo */}
       <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
-        <div className={`center-logo ${logoState === 'hidden' ? 'logo-hidden' : logoState === 'glow' ? 'logo-glow' : logoState === 'flare' ? 'logo-flare' : 'logo-persist'}`}>
+        <div
+          className={`center-logo ${logoState === 'hidden' ? 'logo-hidden' : logoState === 'glow' ? 'logo-glow' : logoState === 'flare' ? 'logo-flare' : 'logo-persist'}`}
+        >
           OCCU&#8209;MED
         </div>
       </div>
 
-      {/* Top bar */}
       <div className="absolute left-0 top-0 z-50 flex w-full items-center justify-between p-5 md:p-7">
         <motion.div
           initial={{ opacity: 0, y: -16 }}
@@ -133,11 +127,10 @@ export default function PortalMap() {
         </motion.div>
       </div>
 
-      {/* Portal planets */}
       {PORTALS.map((portal, idx) => {
         const hasAccess = permissions.includes(portal.permissionKey);
-        const bloomDuration = 3.8 + (idx % 5) * 0.7;
-        const bloomDelay    = (idx * 0.65) % 3.5;
+        const bloomDuration = 4 + (idx % 5) * 0.6;
+        const bloomDelay = (idx * 0.6) % 3.2;
 
         return (
           <motion.button
@@ -145,48 +138,44 @@ export default function PortalMap() {
             aria-label={`${portal.label} portal`}
             className={`group absolute z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none ${hasAccess ? 'cursor-pointer' : 'cursor-default'}`}
             style={{
-              left:   `${portal.x}%`,
-              top:    `${portal.y}%`,
-              width:  `${portal.size}vmin`,
+              left: `${portal.x}%`,
+              top: `${portal.y}%`,
+              width: `${portal.size}vmin`,
               height: `${portal.size}vmin`,
             }}
             onClick={() => handlePortalClick(portal)}
             whileHover={hasAccess ? { scale: 1.08 } : { scale: 1.01 }}
             whileTap={hasAccess ? { scale: 0.97 } : undefined}
           >
-            {/* Ambient bloom — always pulsing */}
             <span
               className="ambient-bloom absolute rounded-full"
               style={{
-                inset: '-40%',
-                background: `radial-gradient(circle, ${portal.color}2a 0%, ${portal.color}0c 55%, transparent 80%)`,
+                inset: '-38%',
+                background: `radial-gradient(circle, ${portal.color}42 0%, ${portal.color}15 56%, transparent 82%)`,
                 '--bloom-duration': `${bloomDuration}s`,
-                '--bloom-delay':    `${bloomDelay}s`,
+                '--bloom-delay': `${bloomDelay}s`,
               } as React.CSSProperties}
             />
 
-            {/* Static base glow ring */}
             <span
-              className="absolute inset-0 rounded-full opacity-40 blur-lg transition-opacity duration-500 group-hover:opacity-80"
-              style={{ boxShadow: `0 0 32px 10px ${portal.color}` }}
+              className="absolute inset-0 rounded-full opacity-45 blur-lg transition-opacity duration-500 group-hover:opacity-85"
+              style={{ boxShadow: `0 0 35px 12px ${portal.color}` }}
             />
 
-            {/* Hover bloom burst */}
             <span
               className="absolute rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-100"
               style={{
-                inset: '-18%',
-                boxShadow: `0 0 55px 14px ${portal.color}90, inset 0 0 28px ${portal.color}55`,
+                inset: '-16%',
+                boxShadow: `0 0 54px 14px ${portal.color}98, inset 0 0 28px ${portal.color}55`,
               }}
             />
 
-            {/* Label — invisible by default, floats up on hover */}
             <span
-              className="portal-label pointer-events-none absolute left-1/2 -translate-x-1/2 translate-y-1.5 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100"
+              className="portal-label pointer-events-none absolute left-1/2 -translate-x-1/2 translate-y-2 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100"
               style={{
-                bottom: '-2.4em',
-                color: portal.color,
-                textShadow: `0 0 8px ${portal.color}, 0 0 18px ${portal.color}80, 0 0 36px ${portal.color}40`,
+                bottom: '-2.7em',
+                color: '#ebf4ff',
+                textShadow: `0 0 8px ${portal.color}, 0 0 18px ${portal.color}80, 0 0 36px ${portal.color}45`,
               }}
             >
               {portal.label}
