@@ -99,28 +99,12 @@
   text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
 }
 
-.space-gradient {
-  background:
-    radial-gradient(120vmax 100vmax at 50% 50%, #120c2a 0%, #070813 44%, #020308 100%),
-    linear-gradient(165deg, #050611 0%, #090b19 48%, #04050b 100%);
-}
-
-.nebula-cloud {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  filter: blur(22px);
-  opacity: 0.85;
-}
-
-.planet-core {
-  backdrop-filter: saturate(1.2);
-}
 
 /* ── Stars ─────────────────────────────────────────────── */
 
 @keyframes twinkle {
-  0%, 100% { opacity: 0.2; transform: scale(0.86); }
-  50%       { opacity: 0.88; transform: scale(1.08); }
+  0%, 100% { opacity: 0.14; transform: scale(0.84); }
+  50%       { opacity: 0.72; transform: scale(1.05); }
 }
 
 @keyframes sparkle {
@@ -162,8 +146,8 @@
 /* ── Ambient planet bloom ──────────────────────────────── */
 
 @keyframes ambientBloom {
-  0%, 100% { opacity: 0.28; transform: scale(1); }
-  50%       { opacity: 0.68; transform: scale(1.22); }
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.16); }
 }
 
 .ambient-bloom {

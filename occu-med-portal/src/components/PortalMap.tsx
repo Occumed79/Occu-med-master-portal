@@ -12,13 +12,13 @@ function checkFirstVisit() {
   return params.get('skipIntro') !== '1' && localStorage.getItem(INTRO_KEY) !== 'true';
 }
 
-const stars = Array.from({ length: 260 }, (_, i) => ({
+const stars = Array.from({ length: 220 }, (_, i) => ({
   id: i,
   left: Number(((i * 37.3 + (i % 7) * 13.7) % 100).toFixed(2)),
   top: Number(((i * 61.7 + (i % 5) * 17.3) % 100).toFixed(2)),
-  size: 0.7 + (i % 6) * 0.45,
-  duration: 2.8 + (i % 10) * 0.55,
-  delay: (i % 19) * 0.18,
+  size: 0.8 + (i % 5) * 0.45,
+  duration: 2.7 + (i % 9) * 0.52,
+  delay: (i % 17) * 0.19,
   bright: i % 9 === 0,
 }));
 
@@ -44,8 +44,8 @@ export default function PortalMap() {
 
     const timers = [
       setTimeout(() => setLogoState('glow'), 900),
-      setTimeout(() => setLogoState('flare'), 1300),
-      setTimeout(() => setLogoState('persist'), 2300),
+      setTimeout(() => setLogoState('flare'), 1250),
+      setTimeout(() => setLogoState('persist'), 2200),
       setTimeout(() => {
         localStorage.setItem(INTRO_KEY, 'true');
         setIntroActive(false);
@@ -61,26 +61,17 @@ export default function PortalMap() {
   };
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-[#04050b]">
-      <div className="absolute inset-0 space-gradient" />
+    <div className="relative h-screen w-full overflow-hidden bg-black">
+      <img
+        src={bgImage}
+        alt="Occu-Med galaxy portal"
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ imageRendering: 'high-quality', transform: 'translateZ(0)', filter: 'contrast(1.03) saturate(1.04)' }}
+      />
 
-      <div className="pointer-events-none absolute inset-0">
-        {nebulae.map((nebula) => (
-          <span
-            key={nebula.id}
-            className="nebula-cloud"
-            style={{
-              left: nebula.x,
-              top: nebula.y,
-              width: nebula.size,
-              height: nebula.size,
-              background: `radial-gradient(circle, ${nebula.color} 0%, rgba(0,0,0,0) 72%)`,
-            }}
-          />
-        ))}
-      </div>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.48)_100%)]" />
 
-      <div className="pointer-events-none absolute inset-0">
+      <div className="pointer-events-none absolute inset-0 mix-blend-screen">
         {stars.map((star) => (
           <div
             key={star.id}
@@ -144,8 +135,8 @@ export default function PortalMap() {
 
       {PORTALS.map((portal, idx) => {
         const hasAccess = permissions.includes(portal.permissionKey);
-        const bloomDuration = 3.8 + (idx % 5) * 0.7;
-        const bloomDelay = (idx * 0.65) % 3.5;
+        const bloomDuration = 4 + (idx % 5) * 0.6;
+        const bloomDelay = (idx * 0.6) % 3.2;
 
         return (
           <motion.button
@@ -165,26 +156,23 @@ export default function PortalMap() {
             <span
               className="ambient-bloom absolute rounded-full"
               style={{
-                inset: '-42%',
-                background: `radial-gradient(circle, ${portal.color}35 0%, ${portal.color}18 54%, transparent 82%)`,
+                inset: '-38%',
+                background: `radial-gradient(circle, ${portal.color}42 0%, ${portal.color}15 56%, transparent 82%)`,
                 '--bloom-duration': `${bloomDuration}s`,
                 '--bloom-delay': `${bloomDelay}s`,
               } as React.CSSProperties}
             />
 
             <span
-              className="planet-core absolute inset-[8%] rounded-full"
-              style={{
-                background: `radial-gradient(circle at 30% 28%, #ffffffbb 0%, ${portal.color}cc 34%, ${portal.color}88 62%, #07090f 100%)`,
-                boxShadow: `inset 0 -16px 24px rgba(0,0,0,0.42), inset 10px 10px 20px rgba(255,255,255,0.07), 0 0 35px 12px ${portal.color}33`,
-              }}
+              className="absolute inset-0 rounded-full opacity-45 blur-lg transition-opacity duration-500 group-hover:opacity-85"
+              style={{ boxShadow: `0 0 35px 12px ${portal.color}` }}
             />
 
             <span
               className="absolute inset-[2%] rounded-full opacity-75 transition-opacity duration-500 group-hover:opacity-100"
               style={{
-                border: `1px solid ${portal.color}90`,
-                boxShadow: `0 0 22px 4px ${portal.color}88, inset 0 0 30px ${portal.color}50`,
+                inset: '-16%',
+                boxShadow: `0 0 54px 14px ${portal.color}98, inset 0 0 28px ${portal.color}55`,
               }}
             />
 
@@ -192,8 +180,8 @@ export default function PortalMap() {
               className="portal-label pointer-events-none absolute left-1/2 -translate-x-1/2 translate-y-2 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100"
               style={{
                 bottom: '-2.7em',
-                color: '#eaf3ff',
-                textShadow: `0 0 7px ${portal.color}, 0 0 18px ${portal.color}90, 0 0 34px ${portal.color}40`,
+                color: '#ebf4ff',
+                textShadow: `0 0 8px ${portal.color}, 0 0 18px ${portal.color}80, 0 0 36px ${portal.color}45`,
               }}
             >
               {portal.label}
