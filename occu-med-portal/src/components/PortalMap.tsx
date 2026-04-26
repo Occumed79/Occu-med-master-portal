@@ -1,266 +1,242 @@
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PORTALS } from '../lib/config';
-import { useAuth } from '../hooks/useAuth';
-import { Link } from 'wouter';
-import { useCallback, useEffect, useRef, useState } from 'react';
 
-const INTRO_KEY = 'occu-med-portal-intro-v2';
-const PORTAL_BG_IMAGE = 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=2400&q=80';
-const PORTAL_INTRO_VIDEO_SRC = '/portal-intro.mp4';
+const STORAGE_KEY = 'occu_med_planet_routes_v1';
 
-function checkFirstVisit() {
-  if (typeof window === 'undefined') return false;
-  const params = new URLSearchParams(window.location.search);
-  return params.get('skipIntro') !== '1' && localStorage.getItem(INTRO_KEY) !== 'true';
+type PlanetId =
+  | 'sun'
+  | 'mercury'
+  | 'venus'
+  | 'earth'
+  | 'mars'
+  | 'jupiter'
+  | 'saturn'
+  | 'uranus'
+  | 'neptune'
+  | 'pluto';
+
+interface PlanetDef {
+  id: PlanetId;
+  label: string;
+  className: string;
+  x: number;
+  y: number;
+  size: number;
+  glow: string;
+  textColor: string;
 }
 
-const stars = Array.from({ length: 220 }, (_, i) => ({
-  id: i,
-  left: Number(((i * 37.3 + (i % 7) * 13.7) % 100).toFixed(2)),
-  top: Number(((i * 61.7 + (i % 5) * 17.3) % 100).toFixed(2)),
-  size: 0.8 + (i % 5) * 0.45,
-  duration: 2.7 + (i % 9) * 0.52,
-  delay: (i % 17) * 0.19,
-  bright: i % 9 === 0,
-}));
+interface PlanetSetting {
+  url: string;
+  videoUrl: string;
+}
 
-const nebulae = [
-  { id: 'n1', x: '16%', y: '24%', size: '34vmin', color: 'rgba(83, 199, 255, 0.16)' },
-  { id: 'n2', x: '79%', y: '28%', size: '28vmin', color: 'rgba(129, 114, 255, 0.14)' },
-  { id: 'n3', x: '24%', y: '78%', size: '42vmin', color: 'rgba(48, 220, 208, 0.13)' },
-  { id: 'n4', x: '84%', y: '76%', size: '38vmin', color: 'rgba(255, 107, 64, 0.12)' },
+type PlanetSettings = Record<PlanetId, PlanetSetting>;
+
+const PLANETS: PlanetDef[] = [
+  { id: 'sun', label: 'Leadership', className: 'planet-sun', x: 13, y: 50, size: 21, glow: '#ffb339', textColor: '#fff6cf' },
+  { id: 'mercury', label: 'ExamQA', className: 'planet-mercury', x: 34, y: 39, size: 10, glow: '#ff9b76', textColor: '#ffe8d9' },
+  { id: 'venus', label: 'Scheduling', className: 'planet-venus', x: 52, y: 36, size: 11, glow: '#ff6e4f', textColor: '#ffe0cf' },
+  { id: 'earth', label: 'Harvesting', className: 'planet-earth', x: 39, y: 52, size: 11, glow: '#72abff', textColor: '#d7ebff' },
+  { id: 'mars', label: 'SME', className: 'planet-mars', x: 35, y: 66, size: 9, glow: '#ca59ff', textColor: '#f5d8ff' },
+  { id: 'jupiter', label: 'Operations', className: 'planet-jupiter', x: 54, y: 69, size: 19, glow: '#a968ff', textColor: '#ecdcff' },
+  { id: 'saturn', label: 'New', className: 'planet-saturn', x: 68, y: 43, size: 14, glow: '#72a1ff', textColor: '#e1ebff' },
+  { id: 'uranus', label: 'Network', className: 'planet-uranus', x: 81, y: 66, size: 14, glow: '#88f6ff', textColor: '#d9ffff' },
+  { id: 'neptune', label: 'Shared', className: 'planet-neptune', x: 86, y: 45, size: 10, glow: '#5d95ff', textColor: '#d9ebff' },
+  { id: 'pluto', label: 'Admin', className: 'planet-pluto', x: 96, y: 66, size: 9, glow: '#a67cff', textColor: '#ece0ff' },
 ];
 
-type LogoState = 'hidden' | 'glow' | 'flare' | 'persist';
+const emptySettings: PlanetSettings = {
+  sun: { url: '', videoUrl: '' },
+  mercury: { url: '', videoUrl: '' },
+  venus: { url: '', videoUrl: '' },
+  earth: { url: '', videoUrl: '' },
+  mars: { url: '', videoUrl: '' },
+  jupiter: { url: '', videoUrl: '' },
+  saturn: { url: '', videoUrl: '' },
+  uranus: { url: '', videoUrl: '' },
+  neptune: { url: '', videoUrl: '' },
+  pluto: { url: '', videoUrl: '' },
+};
+
+function loadSettings(): PlanetSettings {
+  if (typeof window === 'undefined') return emptySettings;
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return emptySettings;
+  try {
+    return { ...emptySettings, ...(JSON.parse(raw) as Partial<PlanetSettings>) };
+  } catch {
+    return emptySettings;
+  }
+}
+
+function saveSettings(settings: PlanetSettings) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+}
 
 export default function PortalMap() {
-  const { permissions, isLive, isAdmin } = useAuth();
-  const introVideoRef = useRef<HTMLVideoElement | null>(null);
-
-  const [introActive, setIntroActive] = useState(checkFirstVisit);
-  const [logoState, setLogoState] = useState<LogoState>(() =>
-    checkFirstVisit() ? 'hidden' : 'persist'
-  );
-  const [pendingPortal, setPendingPortal] = useState<(typeof PORTALS)[0] | null>(null);
-  const [pendingPortalWindow, setPendingPortalWindow] = useState<Window | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [settings, setSettings] = useState<PlanetSettings>(loadSettings);
+  const [activeVideo, setActiveVideo] = useState<{ planetId: PlanetId; url: string; targetUrl: string } | null>(null);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [draft, setDraft] = useState<PlanetSettings>(settings);
 
   useEffect(() => {
-    if (!introActive) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    const timers = [
-      setTimeout(() => setLogoState('glow'), 900),
-      setTimeout(() => setLogoState('flare'), 1250),
-      setTimeout(() => setLogoState('persist'), 2200),
-      setTimeout(() => {
-        localStorage.setItem(INTRO_KEY, 'true');
-        setIntroActive(false);
-      }, 3400),
-    ];
+    let raf = 0;
+    const stars = Array.from({ length: 220 }, (_, i) => ({
+      x: ((i * 83.1) % 100) / 100,
+      y: ((i * 53.7 + i * i) % 100) / 100,
+      base: 0.15 + (i % 7) * 0.09,
+      pulse: 1.4 + (i % 9) * 0.3,
+      phase: (i % 11) * 0.6,
+    }));
 
-    return () => timers.forEach(clearTimeout);
-  }, [introActive]);
+    const resize = () => {
+      canvas.width = canvas.clientWidth * window.devicePixelRatio;
+      canvas.height = canvas.clientHeight * window.devicePixelRatio;
+    };
 
-  const completePortalNavigation = useCallback(() => {
-    if (!pendingPortal) return;
-    if (pendingPortalWindow && !pendingPortalWindow.closed) {
-      pendingPortalWindow.location.replace(pendingPortal.url);
-    } else {
-      window.open(pendingPortal.url, '_blank', 'noopener,noreferrer');
+    resize();
+    window.addEventListener('resize', resize);
+
+    const render = (t: number) => {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#050a2f';
+      ctx.fillRect(0, 0, w, h);
+
+      stars.forEach((s, idx) => {
+        const pulse = 0.45 + 0.55 * Math.sin(t / 1000 * s.pulse + s.phase);
+        const r = (0.9 + (idx % 3) * 0.8 + pulse * 1.3) * window.devicePixelRatio;
+        const x = s.x * w;
+        const y = s.y * h;
+        const alpha = Math.min(1, s.base + pulse * 0.55);
+
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(235,245,255,${alpha})`;
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      raf = requestAnimationFrame(render);
+    };
+
+    raf = requestAnimationFrame(render);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
+
+  const handlePlanetClick = (planet: PlanetDef) => {
+    if (planet.id === 'pluto') {
+      setDraft(settings);
+      setShowAdmin(true);
+      return;
     }
-    setPendingPortal(null);
-    setPendingPortalWindow(null);
-  }, [pendingPortal, pendingPortalWindow]);
 
-  const handlePortalClick = (portal: (typeof PORTALS)[0]) => {
-    if (!permissions.includes(portal.permissionKey)) return;
-
-    const nextWindow = window.open('about:blank', '_blank');
-    if (nextWindow) {
-      nextWindow.opener = null;
+    const conf = settings[planet.id];
+    if (!conf?.url) return;
+    if (conf.videoUrl) {
+      setActiveVideo({ planetId: planet.id, url: conf.videoUrl, targetUrl: conf.url });
+      return;
     }
-
-    setPendingPortal(portal);
-    setPendingPortalWindow(nextWindow);
+    window.open(conf.url, '_blank', 'noopener,noreferrer');
   };
 
-  useEffect(() => {
-    if (!pendingPortal || !introVideoRef.current) return;
-    introVideoRef.current.currentTime = 0;
-    void introVideoRef.current.play().catch(() => {
-      completePortalNavigation();
-    });
-  }, [completePortalNavigation, pendingPortal]);
+  const handleVideoEnd = () => {
+    if (!activeVideo) return;
+    window.open(activeVideo.targetUrl, '_blank', 'noopener,noreferrer');
+    setActiveVideo(null);
+  };
 
-  const cancelPortalNavigation = () => {
-    if (pendingPortalWindow && !pendingPortalWindow.closed) {
-      pendingPortalWindow.close();
-    }
-    setPendingPortal(null);
-    setPendingPortalWindow(null);
+  const handleVideoUpload = (planetId: PlanetId, file: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      setDraft((prev) => ({ ...prev, [planetId]: { ...prev[planetId], videoUrl: dataUrl } }));
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-black">
-      <img
-        src={PORTAL_BG_IMAGE}
-        alt="Occu-Med galaxy portal"
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{ imageRendering: 'auto', transform: 'translateZ(0)', filter: 'contrast(1.03) saturate(1.04)' }}
-      />
+    <div className="solar-scene">
+      <canvas ref={canvasRef} className="solar-star-canvas" />
 
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.48)_100%)]" />
-
-      <div className="pointer-events-none absolute inset-0 mix-blend-screen">
-        {stars.map((star) => (
-          <div
-            key={star.id}
-            className={star.bright ? 'star star-bright' : 'star'}
-            style={{
-              left: `${star.left}%`,
-              top: `${star.top}%`,
-              width: `${star.size}px`,
-              height: `${star.size}px`,
-              '--duration': `${star.duration}s`,
-              '--delay': `${star.delay}s`,
-            } as React.CSSProperties}
-          />
-        ))}
-      </div>
-
-      {introActive && (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="comet-head" />
-        </div>
-      )}
-
-      <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
-        <div
-          className={`center-logo ${logoState === 'hidden' ? 'logo-hidden' : logoState === 'glow' ? 'logo-glow' : logoState === 'flare' ? 'logo-flare' : 'logo-persist'}`}
+      {PLANETS.map((planet) => (
+        <motion.button
+          key={planet.id}
+          className={`solar-planet ${planet.className}`}
+          style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin`, '--planet-glow': planet.glow } as React.CSSProperties}
+          whileHover={{ scale: 1.05 }}
+          onClick={() => handlePlanetClick(planet)}
         >
-          OCCU&#8209;MED
-        </div>
-      </div>
-
-      <div className="absolute left-0 top-0 z-50 flex w-full items-center justify-between p-5 md:p-7">
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
-          className="flex items-center gap-4"
-        >
-          <div className="text-sm font-bold uppercase tracking-[0.34em] text-white/45 md:text-base">
-            OCCU-MED
-          </div>
-          {!isLive && (
-            <div className="rounded-full border border-white/20 bg-black/25 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70 backdrop-blur-md">
-              Setup Mode
+          {planet.id === 'sun' && (
+            <div className="sun-logo-wrap">
+              <div className="sun-logo-mark">OM</div>
+              <div className="sun-logo-text">OCCU-MED</div>
             </div>
           )}
-        </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.15 }}
-        >
-          <Link
-            href={isLive && !isAdmin ? '/login' : '/admin'}
-            className="rounded-full border border-white/15 bg-black/25 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/75 backdrop-blur-md transition hover:border-white/35 hover:text-white"
-          >
-            Admin
-          </Link>
-        </motion.div>
-      </div>
+          <span className="planet-hover-label" style={{ color: planet.textColor }}>{planet.label}</span>
+        </motion.button>
+      ))}
 
-      {PORTALS.map((portal, idx) => {
-        const hasAccess = permissions.includes(portal.permissionKey);
-        const bloomDuration = 4 + (idx % 5) * 0.6;
-        const bloomDelay = (idx * 0.6) % 3.2;
-
-        return (
-          <motion.button
-            key={portal.id}
-            aria-label={`${portal.label} portal`}
-            className={`group absolute z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none ${hasAccess ? 'cursor-pointer' : 'cursor-default'} ${hasAccess ? '' : 'opacity-60'}`}
-            style={{
-              left: `${portal.x}%`,
-              top: `${portal.y}%`,
-              width: `${portal.size}vmin`,
-              height: `${portal.size}vmin`,
-            }}
-            onClick={() => handlePortalClick(portal)}
-            whileHover={hasAccess ? { scale: 1.08 } : { scale: 1.01 }}
-            whileTap={hasAccess ? { scale: 0.97 } : undefined}
-          >
-            <span
-              className="ambient-bloom absolute rounded-full"
-              style={{
-                inset: '-38%',
-                background: `radial-gradient(circle, ${portal.color}42 0%, ${portal.color}15 56%, transparent 82%)`,
-                '--bloom-duration': `${bloomDuration}s`,
-                '--bloom-delay': `${bloomDelay}s`,
-              } as React.CSSProperties}
-            />
-
-            <span
-              className="absolute inset-0 rounded-full opacity-45 blur-lg transition-opacity duration-500 group-hover:opacity-85"
-              style={{ boxShadow: `0 0 35px 12px ${portal.color}` }}
-            />
-
-            <span
-              className="absolute inset-[2%] rounded-full opacity-75 transition-opacity duration-500 group-hover:opacity-100"
-              style={{
-                inset: '-16%',
-                boxShadow: `0 0 54px 14px ${portal.color}98, inset 0 0 28px ${portal.color}55`,
-              }}
-            />
-
-            <span
-              className="portal-label pointer-events-none absolute left-1/2 -translate-x-1/2 translate-y-2 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100"
-              style={{
-                bottom: '-2.7em',
-                color: '#ebf4ff',
-                textShadow: `0 0 8px ${portal.color}, 0 0 18px ${portal.color}80, 0 0 36px ${portal.color}45`,
-              }}
-            >
-              {portal.label}
-            </span>
-          </motion.button>
-        );
-      })}
-
-      {pendingPortal && (
-        <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/88 p-4">
-          <div className="relative w-full max-w-5xl overflow-hidden rounded-xl border border-white/20 bg-black shadow-[0_0_44px_rgba(86,187,255,0.28)]">
-            <video
-              ref={introVideoRef}
-              className="h-full max-h-[80vh] w-full bg-black object-cover"
-              src={PORTAL_INTRO_VIDEO_SRC}
-              onEnded={completePortalNavigation}
-              onError={completePortalNavigation}
-              playsInline
-              controls
-              autoPlay
-            />
-            <button
-              type="button"
-              onClick={completePortalNavigation}
-              className="absolute right-3 top-3 rounded-full border border-white/35 bg-black/65 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85 transition hover:border-white/70 hover:text-white"
-            >
-              Skip
-            </button>
-            <button
-              type="button"
-              onClick={cancelPortalNavigation}
-              className="absolute left-3 top-3 rounded-full border border-white/35 bg-black/65 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85 transition hover:border-white/70 hover:text-white"
-            >
-              Close
-            </button>
-          </div>
+      {activeVideo && (
+        <div className="video-overlay">
+          <video src={activeVideo.url} controls autoPlay onEnded={handleVideoEnd} className="video-player" />
+          <button className="video-close" onClick={() => setActiveVideo(null)}>Close</button>
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_44%,rgba(0,0,0,0.64)_100%)]" />
+      {showAdmin && (
+        <div className="admin-overlay">
+          <div className="admin-panel">
+            <h2>Pluto Admin Panel</h2>
+            <p>Set video + destination URL for each planet.</p>
+            <div className="admin-grid">
+              {PLANETS.map((p) => (
+                <div key={p.id} className="admin-card">
+                  <strong>{p.label}</strong>
+                  <input
+                    type="url"
+                    placeholder="https://portal-url"
+                    value={draft[p.id].url}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], url: e.target.value } }))}
+                  />
+                  <input
+                    type="url"
+                    placeholder="https://video-url.mp4"
+                    value={draft[p.id].videoUrl.startsWith('data:') ? '' : draft[p.id].videoUrl}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], videoUrl: e.target.value } }))}
+                  />
+                  <input type="file" accept="video/*" onChange={(e) => handleVideoUpload(p.id, e.target.files?.[0] ?? null)} />
+                </div>
+              ))}
+            </div>
+            <div className="admin-actions">
+              <button onClick={() => setShowAdmin(false)}>Cancel</button>
+              <button
+                onClick={() => {
+                  setSettings(draft);
+                  saveSettings(draft);
+                  setShowAdmin(false);
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
