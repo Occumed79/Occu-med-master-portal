@@ -2,9 +2,11 @@ import { motion } from 'framer-motion';
 import { PORTALS } from '../lib/config';
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'wouter';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const INTRO_KEY = 'occu-med-portal-intro-v2';
+const PORTAL_BG_IMAGE = 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=2400&q=80';
+const PORTAL_INTRO_VIDEO_SRC = '/portal-intro.mp4';
 
 function checkFirstVisit() {
   if (typeof window === 'undefined') return false;
@@ -33,11 +35,14 @@ type LogoState = 'hidden' | 'glow' | 'flare' | 'persist';
 
 export default function PortalMap() {
   const { permissions, isLive, isAdmin } = useAuth();
+  const introVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const [introActive, setIntroActive] = useState(checkFirstVisit);
   const [logoState, setLogoState] = useState<LogoState>(() =>
     checkFirstVisit() ? 'hidden' : 'persist'
   );
+  const [pendingPortal, setPendingPortal] = useState<(typeof PORTALS)[0] | null>(null);
+  const [pendingPortalWindow, setPendingPortalWindow] = useState<Window | null>(null);
 
   useEffect(() => {
     if (!introActive) return;
@@ -55,18 +60,52 @@ export default function PortalMap() {
     return () => timers.forEach(clearTimeout);
   }, [introActive]);
 
+  const completePortalNavigation = useCallback(() => {
+    if (!pendingPortal) return;
+    if (pendingPortalWindow && !pendingPortalWindow.closed) {
+      pendingPortalWindow.location.replace(pendingPortal.url);
+    } else {
+      window.open(pendingPortal.url, '_blank', 'noopener,noreferrer');
+    }
+    setPendingPortal(null);
+    setPendingPortalWindow(null);
+  }, [pendingPortal, pendingPortalWindow]);
+
   const handlePortalClick = (portal: (typeof PORTALS)[0]) => {
     if (!permissions.includes(portal.permissionKey)) return;
-    window.open(portal.url, '_blank', 'noopener,noreferrer');
+
+    const nextWindow = window.open('about:blank', '_blank');
+    if (nextWindow) {
+      nextWindow.opener = null;
+    }
+
+    setPendingPortal(portal);
+    setPendingPortalWindow(nextWindow);
+  };
+
+  useEffect(() => {
+    if (!pendingPortal || !introVideoRef.current) return;
+    introVideoRef.current.currentTime = 0;
+    void introVideoRef.current.play().catch(() => {
+      completePortalNavigation();
+    });
+  }, [completePortalNavigation, pendingPortal]);
+
+  const cancelPortalNavigation = () => {
+    if (pendingPortalWindow && !pendingPortalWindow.closed) {
+      pendingPortalWindow.close();
+    }
+    setPendingPortal(null);
+    setPendingPortalWindow(null);
   };
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black">
       <img
-        src={bgImage}
+        src={PORTAL_BG_IMAGE}
         alt="Occu-Med galaxy portal"
         className="absolute inset-0 h-full w-full object-cover"
-        style={{ imageRendering: 'high-quality', transform: 'translateZ(0)', filter: 'contrast(1.03) saturate(1.04)' }}
+        style={{ imageRendering: 'auto', transform: 'translateZ(0)', filter: 'contrast(1.03) saturate(1.04)' }}
       />
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.48)_100%)]" />
@@ -189,6 +228,37 @@ export default function PortalMap() {
           </motion.button>
         );
       })}
+
+      {pendingPortal && (
+        <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/88 p-4">
+          <div className="relative w-full max-w-5xl overflow-hidden rounded-xl border border-white/20 bg-black shadow-[0_0_44px_rgba(86,187,255,0.28)]">
+            <video
+              ref={introVideoRef}
+              className="h-full max-h-[80vh] w-full bg-black object-cover"
+              src={PORTAL_INTRO_VIDEO_SRC}
+              onEnded={completePortalNavigation}
+              onError={completePortalNavigation}
+              playsInline
+              controls
+              autoPlay
+            />
+            <button
+              type="button"
+              onClick={completePortalNavigation}
+              className="absolute right-3 top-3 rounded-full border border-white/35 bg-black/65 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85 transition hover:border-white/70 hover:text-white"
+            >
+              Skip
+            </button>
+            <button
+              type="button"
+              onClick={cancelPortalNavigation}
+              className="absolute left-3 top-3 rounded-full border border-white/35 bg-black/65 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85 transition hover:border-white/70 hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_44%,rgba(0,0,0,0.64)_100%)]" />
     </div>
