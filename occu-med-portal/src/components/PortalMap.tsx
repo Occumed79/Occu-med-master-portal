@@ -120,8 +120,8 @@ export default function PortalMap() {
       {PORTALS.map((planet) => {
         const isHovered = hoveredId === planet.id;
         return (
-          <motion.button key={planet.id} className="planet-hotspot" style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin`, '--planet-glow': planet.glow } as React.CSSProperties} whileHover={{ scale: 1.025 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }} onClick={() => handlePlanetClick(planet)} onHoverStart={() => onHoverPlanet(planet.id)} onHoverEnd={() => setHoveredId(null)} aria-label={planet.label}>
-            <span className="planet-hover-disc" style={{ opacity: isHovered ? 1 : 0 }} />
+          <motion.button key={planet.id} className="planet-hotspot" style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin`, '--planet-glow': planet.glow } as React.CSSProperties} whileHover={{ scale: 1.02 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }} onClick={() => handlePlanetClick(planet)} onHoverStart={() => onHoverPlanet(planet.id)} onMouseEnter={() => onHoverPlanet(planet.id)} onHoverEnd={() => setHoveredId(null)} onMouseLeave={() => setHoveredId(null)} aria-label={planet.label}>
+            <span className={`planet-hover-disc ${isHovered ? 'is-visible' : ''}`} />
           </motion.button>
         );
       })}
