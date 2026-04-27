@@ -14,41 +14,29 @@ export type PortalPermissionKey =
 
 export interface PortalDef {
   id: PortalPermissionKey;
-  label: string;            // label shown ON the planet
+  label: string;
   permissionKey: PortalPermissionKey;
-  url: string;              // render link (set via Admin panel / Pluto click)
-  videoUrl: string;         // per-planet transition video URL
-  glow: string;             // bloom / glow colour
-  x: number;                // % left  (matched to solar system artwork)
-  y: number;                // % top
-  size: number;             // vmin — diameter of clickable hotspot
+  url: string;
+  videoUrl: string;
+  glow: string;
+  x: number;
+  y: number;
+  size: number;
 }
 
-// ─── Planet positions carefully mapped to the solar system artwork ────────────
-// Image is landscape 16:9. All x/y are % of container width/height.
-//
-//  Sun       – far left, large golden star
-//  Mercury   – upper area, small tan/orange planet
-//  Venus     – top center, bright red/orange planet
-//  Earth     – blue/green planet, mid-left cluster
-//  Mars      – purple planet, lower-left cluster
-//  Jupiter   – huge striped planet, bottom-center
-//  Saturn    – ringed planet, right of center
-//  Uranus    – teal planet, lower-right
-//  Neptune   – blue planet, upper-right
-//  Pluto     – tiny purple, far right edge
-
+// Pixel-mapped against the uploaded solar-system artwork in a 2048 x 1152 canvas.
+// x/y values are percentages of the artwork. Size is vmin hotspot diameter.
 export const PORTALS: PortalDef[] = [
-  { id: 'leadership', label: 'Leadership', permissionKey: 'leadership', url: '', videoUrl: '', glow: '#ffb54b', x: 13,   y: 50,   size: 20  },
-  { id: 'exam_qa',    label: 'ExamQA',     permissionKey: 'exam_qa',    url: '', videoUrl: '', glow: '#ffcf8d', x: 30,   y: 32,   size: 9   },
-  { id: 'scheduling', label: 'Scheduling', permissionKey: 'scheduling', url: '', videoUrl: '', glow: '#ff6e4f', x: 50,   y: 24,   size: 11  },
-  { id: 'harvesting', label: 'Harvesting', permissionKey: 'harvesting', url: '', videoUrl: '', glow: '#74a9ff', x: 36,   y: 55,   size: 9.5 },
-  { id: 'sme',        label: 'SME',        permissionKey: 'sme',        url: '', videoUrl: '', glow: '#c86cff', x: 29,   y: 72,   size: 8.5 },
-  { id: 'operations', label: 'Operations', permissionKey: 'operations', url: '', videoUrl: '', glow: '#a56dff', x: 52,   y: 68,   size: 18  },
-  { id: 'new',        label: 'New',        permissionKey: 'new',        url: '', videoUrl: '', glow: '#7ea2ff', x: 70,   y: 38,   size: 14  },
-  { id: 'network',    label: 'Network',    permissionKey: 'network',    url: '', videoUrl: '', glow: '#9ef7ff', x: 80,   y: 65,   size: 12  },
-  { id: 'shared',     label: 'Shared',     permissionKey: 'shared',     url: '', videoUrl: '', glow: '#5d93ff', x: 87,   y: 36,   size: 9   },
-  { id: 'admin',      label: 'Admin',      permissionKey: 'admin',      url: '', videoUrl: '', glow: '#ad86ff', x: 95.5, y: 65,   size: 7   },
+  { id: 'leadership', label: 'Leadership', permissionKey: 'leadership', url: '', videoUrl: '', glow: '#ffd35c', x: 12.6, y: 50.4, size: 19.8 },
+  { id: 'exam_qa', label: 'ExamQA', permissionKey: 'exam_qa', url: '', videoUrl: '', glow: '#ffcf8d', x: 29.2, y: 31.1, size: 10.5 },
+  { id: 'scheduling', label: 'Scheduling', permissionKey: 'scheduling', url: '', videoUrl: '', glow: '#ff704d', x: 50.9, y: 29.1, size: 12.7 },
+  { id: 'harvesting', label: 'Harvesting', permissionKey: 'harvesting', url: '', videoUrl: '', glow: '#67a7ff', x: 37.2, y: 51.1, size: 11.4 },
+  { id: 'sme', label: 'SME', permissionKey: 'sme', url: '', videoUrl: '', glow: '#d66cff', x: 31.2, y: 67.3, size: 10.4 },
+  { id: 'operations', label: 'Operations', permissionKey: 'operations', url: '', videoUrl: '', glow: '#b061ff', x: 51.6, y: 69.8, size: 19.0 },
+  { id: 'new', label: 'New', permissionKey: 'new', url: '', videoUrl: '', glow: '#5f8cff', x: 69.3, y: 39.0, size: 15.4 },
+  { id: 'network', label: 'Network', permissionKey: 'network', url: '', videoUrl: '', glow: '#9ef7ff', x: 77.9, y: 66.6, size: 14.3 },
+  { id: 'shared', label: 'Shared', permissionKey: 'shared', url: '', videoUrl: '', glow: '#29a8ff', x: 86.7, y: 36.5, size: 10.8 },
+  { id: 'admin', label: 'Admin', permissionKey: 'admin', url: '', videoUrl: '', glow: '#ad86ff', x: 95.3, y: 64.7, size: 9.2 },
 ];
 
 export const STORAGE_KEY = 'occu_med_planet_routes_v2';
