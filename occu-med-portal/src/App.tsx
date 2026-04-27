@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,58 +10,54 @@ import Login from "@/pages/Login";
 import { OPENING_VIDEO_KEY } from "@/lib/config";
 
 const queryClient = new QueryClient();
+const DEFAULT_OPENING_VIDEO_URL = '/assets/opening-video.mp4';
 
 function OpeningVideo({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const videoUrl = typeof window !== 'undefined'
-    ? localStorage.getItem(OPENING_VIDEO_KEY) ?? ''
-    : '';
+  const [canStart, setCanStart] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const videoUrl = useMemo(() => {
+    if (typeof window === 'undefined') return DEFAULT_OPENING_VIDEO_URL;
+    return localStorage.getItem(OPENING_VIDEO_KEY) || DEFAULT_OPENING_VIDEO_URL;
+  }, []);
 
   useEffect(() => {
-    if (!videoUrl) onDone();
-  }, [videoUrl, onDone]);
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = true;
+    const attempt = video.play();
+    if (attempt) {
+      attempt
+        .then(() => setCanStart(true))
+        .catch(() => setCanStart(false));
+    }
+  }, [videoUrl]);
 
-  if (!videoUrl) return null;
+  if (failed) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        background: '#000',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
+    <div className="opening-video-overlay">
       <video
         ref={videoRef}
         src={videoUrl}
         autoPlay
+        muted
         playsInline
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        preload="auto"
+        className="opening-video"
+        onCanPlay={() => setCanStart(true)}
         onEnded={onDone}
-      />
-      <button
-        onClick={onDone}
-        style={{
-          position: 'absolute',
-          bottom: '2rem',
-          right: '2rem',
-          background: 'rgba(255,255,255,0.12)',
-          border: '1px solid rgba(255,255,255,0.3)',
-          color: '#fff',
-          padding: '0.5rem 1.2rem',
-          borderRadius: '999px',
-          cursor: 'pointer',
-          fontSize: '0.85rem',
-          backdropFilter: 'blur(8px)',
-          letterSpacing: '0.1em',
+        onError={() => {
+          setFailed(true);
+          onDone();
         }}
-      >
-        Skip ›
-      </button>
+      />
+      {!canStart && (
+        <button className="opening-start-button" onClick={() => videoRef.current?.play().then(() => setCanStart(true)).catch(onDone)}>
+          Enter Portal
+        </button>
+      )}
+      <button onClick={onDone} className="opening-skip-button">Skip ›</button>
     </div>
   );
 }
@@ -84,13 +80,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {!introPlayed && <OpeningVideo onDone={() => setIntroPlayed(true)} />}
-        <div
-          style={{
-            opacity: introPlayed ? 1 : 0,
-            transition: 'opacity 0.8s ease',
-            height: '100vh',
-          }}
-        >
+        <div style={{ opacity: introPlayed ? 1 : 0, transition: 'opacity 0.8s ease', height: '100vh' }}>
           <WouterRouter>
             <Router />
           </WouterRouter>
