@@ -99,11 +99,12 @@
   text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
 }
 
+
 /* ── Stars ─────────────────────────────────────────────── */
 
 @keyframes twinkle {
-  0%, 100% { opacity: 0.12; transform: scale(0.85); }
-  50%       { opacity: 0.75; transform: scale(1.05); }
+  0%, 100% { opacity: 0.14; transform: scale(0.84); }
+  50%       { opacity: 0.72; transform: scale(1.05); }
 }
 
 @keyframes sparkle {
@@ -145,8 +146,8 @@
 /* ── Ambient planet bloom ──────────────────────────────── */
 
 @keyframes ambientBloom {
-  0%, 100% { opacity: 0.22; transform: scale(1); }
-  50%       { opacity: 0.52; transform: scale(1.18); }
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.16); }
 }
 
 .ambient-bloom {
@@ -161,7 +162,7 @@
   0%   { transform: translate(-320px, 0); opacity: 0; }
   6%   { opacity: 1; }
   94%  { opacity: 1; }
-  100% { transform: translate(calc(100vw + 320px), 30vh); opacity: 0; }
+  100% { transform: translate(calc(100vw + 320px), 34vh); opacity: 0; }
 }
 
 .comet-head {
@@ -265,15 +266,160 @@
 /* ── Portal hover labels ───────────────────────────────── */
 
 .portal-label {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-size: clamp(9px, 0.86vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   font-family: 'JetBrains Mono', monospace;
   white-space: nowrap;
+  padding: 0.32rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(235, 244, 255, 0.28);
+  background: linear-gradient(120deg, rgba(12, 16, 34, 0.78), rgba(13, 10, 28, 0.5));
+  backdrop-filter: blur(4px);
   transition: opacity 0.45s ease, transform 0.45s ease, letter-spacing 0.45s ease;
 }
 
 .group:hover .portal-label {
-  letter-spacing: 0.32em;
+  letter-spacing: 0.34em;
+}
+
+
+/* --- Artwork portal interaction layer --- */
+.portal-artwork-scene {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #050a2f;
+}
+
+.portal-artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 13% 49%, rgba(255, 182, 72, 0.22) 0 14%, transparent 24%),
+    radial-gradient(circle at 34.5% 38.5%, rgba(255, 155, 120, 0.18) 0 8%, transparent 16%),
+    radial-gradient(circle at 52% 35.6%, rgba(255, 90, 64, 0.2) 0 9%, transparent 18%),
+    radial-gradient(circle at 39.8% 52.7%, rgba(112, 162, 255, 0.18) 0 8%, transparent 16%),
+    radial-gradient(circle at 34.3% 67.5%, rgba(186, 120, 255, 0.2) 0 7%, transparent 14%),
+    radial-gradient(circle at 53.5% 70.3%, rgba(132, 90, 255, 0.18) 0 13%, transparent 24%),
+    radial-gradient(circle at 68.7% 44%, rgba(126, 162, 255, 0.18) 0 10%, transparent 19%),
+    radial-gradient(circle at 81.5% 66.8%, rgba(153, 243, 255, 0.2) 0 11%, transparent 19%),
+    radial-gradient(circle at 86.4% 44.5%, rgba(88, 145, 255, 0.2) 0 8%, transparent 15%),
+    radial-gradient(circle at 96% 66.2%, rgba(176, 135, 255, 0.2) 0 7%, transparent 14%),
+    radial-gradient(circle at 52% 52%, rgba(36, 70, 160, 0.32) 0%, rgba(8, 16, 45, 0.72) 45%, rgba(4, 8, 24, 0.98) 100%);
+  filter: saturate(1.08);
+}
+
+.planet-hotspot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  transition: filter 220ms ease;
+}
+
+.planet-hotspot-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity 220ms ease, box-shadow 220ms ease;
+  box-shadow: 0 0 24px color-mix(in srgb, var(--planet-glow) 72%, transparent);
+}
+
+.planet-hotspot-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: clamp(18px, 1.8vw, 34px);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #f2f8ff;
+  opacity: 0;
+  text-shadow: 0 0 10px #fff, 0 0 24px color-mix(in srgb, var(--planet-glow) 80%, #fff);
+  transition: opacity 220ms ease;
+}
+
+.planet-hotspot:hover {
+  filter: brightness(1.08);
+}
+
+.planet-hotspot:hover .planet-hotspot-glow {
+  opacity: 1;
+  box-shadow:
+    0 0 26px color-mix(in srgb, var(--planet-glow) 82%, transparent),
+    0 0 54px color-mix(in srgb, var(--planet-glow) 62%, transparent);
+}
+
+.planet-hotspot:hover .planet-hotspot-label {
+  opacity: 1;
+}
+
+.video-overlay,
+.admin-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 4, 17, 0.85);
+  display: grid;
+  place-items: center;
+  z-index: 80;
+}
+
+.video-player {
+  width: min(92vw, 1000px);
+  max-height: 84vh;
+  border-radius: 12px;
+}
+
+.video-close {
+  margin-top: 12px;
+}
+
+.admin-panel {
+  width: min(95vw, 1050px);
+  max-height: 86vh;
+  overflow: auto;
+  background: #090f2f;
+  border: 1px solid #33427f;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.admin-card {
+  display: grid;
+  gap: 8px;
+  background: #0f1740;
+  border: 1px solid #2f3e78;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.admin-card input {
+  width: 100%;
+  background: #02071f;
+  border: 1px solid #32417c;
+  border-radius: 6px;
+  padding: 7px;
+}
+
+.admin-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
 }
