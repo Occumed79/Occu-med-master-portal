@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
+import artwork from '@assets/ChatGPT_Image_Apr_19,_2026,_07_56_01_PM_copy_2_1776690199128.png';
 
 const STORAGE_KEY = 'occu_med_planet_routes_v1';
 
@@ -18,12 +19,10 @@ type PlanetId =
 interface PlanetDef {
   id: PlanetId;
   label: string;
-  className: string;
   x: number;
   y: number;
   size: number;
   glow: string;
-  textColor: string;
 }
 
 interface PlanetSetting {
@@ -34,16 +33,16 @@ interface PlanetSetting {
 type PlanetSettings = Record<PlanetId, PlanetSetting>;
 
 const PLANETS: PlanetDef[] = [
-  { id: 'sun', label: 'Leadership', className: 'planet-sun', x: 13, y: 50, size: 21, glow: '#ffb339', textColor: '#fff6cf' },
-  { id: 'mercury', label: 'ExamQA', className: 'planet-mercury', x: 34, y: 39, size: 10, glow: '#ff9b76', textColor: '#ffe8d9' },
-  { id: 'venus', label: 'Scheduling', className: 'planet-venus', x: 52, y: 36, size: 11, glow: '#ff6e4f', textColor: '#ffe0cf' },
-  { id: 'earth', label: 'Harvesting', className: 'planet-earth', x: 39, y: 52, size: 11, glow: '#72abff', textColor: '#d7ebff' },
-  { id: 'mars', label: 'SME', className: 'planet-mars', x: 35, y: 66, size: 9, glow: '#ca59ff', textColor: '#f5d8ff' },
-  { id: 'jupiter', label: 'Operations', className: 'planet-jupiter', x: 54, y: 69, size: 19, glow: '#a968ff', textColor: '#ecdcff' },
-  { id: 'saturn', label: 'New', className: 'planet-saturn', x: 68, y: 43, size: 14, glow: '#72a1ff', textColor: '#e1ebff' },
-  { id: 'uranus', label: 'Network', className: 'planet-uranus', x: 81, y: 66, size: 14, glow: '#88f6ff', textColor: '#d9ffff' },
-  { id: 'neptune', label: 'Shared', className: 'planet-neptune', x: 86, y: 45, size: 10, glow: '#5d95ff', textColor: '#d9ebff' },
-  { id: 'pluto', label: 'Admin', className: 'planet-pluto', x: 96, y: 66, size: 9, glow: '#a67cff', textColor: '#ece0ff' },
+  { id: 'sun', label: 'Leadership', x: 12, y: 49, size: 22.5, glow: '#ffb54b' },
+  { id: 'mercury', label: 'ExamQA', x: 34.5, y: 38.5, size: 10, glow: '#ffad8d' },
+  { id: 'venus', label: 'Scheduling', x: 52, y: 35.6, size: 11, glow: '#ff6e4f' },
+  { id: 'earth', label: 'Harvesting', x: 39.8, y: 52.7, size: 10.8, glow: '#74a9ff' },
+  { id: 'mars', label: 'SME', x: 34.3, y: 67.5, size: 9.1, glow: '#c86cff' },
+  { id: 'jupiter', label: 'Operations', x: 53.5, y: 70.3, size: 19, glow: '#a56dff' },
+  { id: 'saturn', label: 'New', x: 68.7, y: 44, size: 14.5, glow: '#7ea2ff' },
+  { id: 'uranus', label: 'Network', x: 81.5, y: 66.8, size: 14, glow: '#9ef7ff' },
+  { id: 'neptune', label: 'Shared', x: 86.4, y: 44.5, size: 10.8, glow: '#5d93ff' },
+  { id: 'pluto', label: 'Admin', x: 96, y: 66.2, size: 9.3, glow: '#ad86ff' },
 ];
 
 const emptySettings: PlanetSettings = {
@@ -75,65 +74,10 @@ function saveSettings(settings: PlanetSettings) {
 }
 
 export default function PortalMap() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [settings, setSettings] = useState<PlanetSettings>(loadSettings);
-  const [activeVideo, setActiveVideo] = useState<{ planetId: PlanetId; url: string; targetUrl: string } | null>(null);
+  const [activeVideo, setActiveVideo] = useState<{ url: string; targetUrl: string } | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
   const [draft, setDraft] = useState<PlanetSettings>(settings);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let raf = 0;
-    const stars = Array.from({ length: 220 }, (_, i) => ({
-      x: ((i * 83.1) % 100) / 100,
-      y: ((i * 53.7 + i * i) % 100) / 100,
-      base: 0.15 + (i % 7) * 0.09,
-      pulse: 1.4 + (i % 9) * 0.3,
-      phase: (i % 11) * 0.6,
-    }));
-
-    const resize = () => {
-      canvas.width = canvas.clientWidth * window.devicePixelRatio;
-      canvas.height = canvas.clientHeight * window.devicePixelRatio;
-    };
-
-    resize();
-    window.addEventListener('resize', resize);
-
-    const render = (t: number) => {
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = '#050a2f';
-      ctx.fillRect(0, 0, w, h);
-
-      stars.forEach((s, idx) => {
-        const pulse = 0.45 + 0.55 * Math.sin(t / 1000 * s.pulse + s.phase);
-        const r = (0.9 + (idx % 3) * 0.8 + pulse * 1.3) * window.devicePixelRatio;
-        const x = s.x * w;
-        const y = s.y * h;
-        const alpha = Math.min(1, s.base + pulse * 0.55);
-
-        ctx.beginPath();
-        ctx.fillStyle = `rgba(235,245,255,${alpha})`;
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      raf = requestAnimationFrame(render);
-    };
-
-    raf = requestAnimationFrame(render);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
-    };
-  }, []);
-
 
   const handlePlanetClick = (planet: PlanetDef) => {
     if (planet.id === 'pluto') {
@@ -145,7 +89,7 @@ export default function PortalMap() {
     const conf = settings[planet.id];
     if (!conf?.url) return;
     if (conf.videoUrl) {
-      setActiveVideo({ planetId: planet.id, url: conf.videoUrl, targetUrl: conf.url });
+      setActiveVideo({ url: conf.videoUrl, targetUrl: conf.url });
       return;
     }
     window.open(conf.url, '_blank', 'noopener,noreferrer');
@@ -168,25 +112,21 @@ export default function PortalMap() {
   };
 
   return (
-    <div className="solar-scene">
-      <canvas ref={canvasRef} className="solar-star-canvas" />
+    <div className="portal-artwork-scene">
+      <img src={artwork} alt="Occu-Med solar artwork" className="portal-artwork" />
 
       {PLANETS.map((planet) => (
         <motion.button
           key={planet.id}
-          className={`solar-planet ${planet.className}`}
+          className="planet-hotspot"
           style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin`, '--planet-glow': planet.glow } as React.CSSProperties}
           whileHover={{ scale: 1.05 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 18 }}
           onClick={() => handlePlanetClick(planet)}
+          aria-label={planet.label}
         >
-          {planet.id === 'sun' && (
-            <div className="sun-logo-wrap">
-              <div className="sun-logo-mark">OM</div>
-              <div className="sun-logo-text">OCCU-MED</div>
-            </div>
-          )}
-
-          <span className="planet-hover-label" style={{ color: planet.textColor }}>{planet.label}</span>
+          <span className="planet-hotspot-glow" />
+          <span className="planet-hotspot-label">{planet.label}</span>
         </motion.button>
       ))}
 
