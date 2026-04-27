@@ -8,7 +8,7 @@ interface PlanetSetting {
 }
 type PlanetSettings = Record<PortalPermissionKey, PlanetSetting>;
 
-const ARTWORK_SRC = '/assets/portal-solar-system-final.jpg';
+const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL ?? '';
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? '';
 
@@ -31,16 +31,6 @@ function saveSettings(s: PlanetSettings) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
 }
 
-const STARS = Array.from({ length: 320 }, (_, i) => ({
-  id: i,
-  top: `${Math.random() * 100}%`,
-  left: `${Math.random() * 100}%`,
-  size: Math.random() < 0.2 ? Math.random() * 2.5 + 2 : Math.random() * 1.2 + 0.5,
-  bright: Math.random() < 0.25,
-  duration: `${1.8 + Math.random() * 3}s`,
-  delay: `${Math.random() * 5}s`,
-}));
-
 type LaunchState = {
   iframeUrl: string;
   videoUrl: string | null;
@@ -61,27 +51,16 @@ export default function PortalMap() {
   const [adminError, setAdminError] = useState('');
   const sceneRef = useRef<HTMLDivElement>(null);
 
-  const openAdminPanel = () => {
-    setDraft({ ...settings });
-    setAdminError('');
-    setShowAdmin(true);
-  };
-
   const handlePlanetClick = (planet: PortalDef) => {
     if (planet.id === 'admin') {
-      openAdminPanel();
+      setDraft({ ...settings });
+      setAdminError('');
+      setShowAdmin(true);
       return;
     }
     const conf = settings[planet.id];
     if (!conf?.url) return;
-
-    setLaunch({
-      iframeUrl: conf.url,
-      videoUrl: conf.videoUrl || null,
-      label: planet.label,
-      glow: planet.glow,
-      videoOver: !conf.videoUrl,
-    });
+    setLaunch({ iframeUrl: conf.url, videoUrl: conf.videoUrl || null, label: planet.label, glow: planet.glow, videoOver: !conf.videoUrl });
   };
 
   const handleVideoEnd = () => {
@@ -92,9 +71,7 @@ export default function PortalMap() {
   const handleVideoUpload = (id: PortalPermissionKey, file: File | null) => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      setDraft((prev) => ({ ...prev, [id]: { ...prev[id], videoUrl: String(reader.result || '') } }));
-    };
+    reader.onload = () => setDraft((prev) => ({ ...prev, [id]: { ...prev[id], videoUrl: String(reader.result || '') } }));
     reader.readAsDataURL(file);
   };
 
@@ -121,22 +98,7 @@ export default function PortalMap() {
 
   return (
     <div ref={sceneRef} className="portal-artwork-scene">
-      <img src={ARTWORK_SRC} alt="Occu-Med solar system" className="portal-artwork" />
-
-      {STARS.map((s) => (
-        <span
-          key={s.id}
-          className={`star${s.bright ? ' star-bright' : ''}`}
-          style={{
-            top: s.top,
-            left: s.left,
-            width: `${s.size}px`,
-            height: `${s.size}px`,
-            '--duration': s.duration,
-            '--delay': s.delay,
-          } as React.CSSProperties}
-        />
-      ))}
+      <video src={ARTWORK_SRC} className="portal-artwork" autoPlay muted loop playsInline preload="auto" />
 
       {PORTALS.map((planet) => {
         const isHovered = hoveredId === planet.id;
@@ -144,13 +106,7 @@ export default function PortalMap() {
           <motion.button
             key={planet.id}
             className="planet-hotspot"
-            style={{
-              left: `${planet.x}%`,
-              top: `${planet.y}%`,
-              width: `${planet.size}vmin`,
-              height: `${planet.size}vmin`,
-              '--planet-glow': planet.glow,
-            } as React.CSSProperties}
+            style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin`, '--planet-glow': planet.glow } as React.CSSProperties}
             whileHover={{ scale: 1.08 }}
             transition={{ type: 'spring', stiffness: 260, damping: 18 }}
             onClick={() => handlePlanetClick(planet)}
@@ -158,41 +114,9 @@ export default function PortalMap() {
             onHoverEnd={() => setHoveredId(null)}
             aria-label={planet.label}
           >
-            <span
-              className="ambient-bloom"
-              style={{
-                position: 'absolute',
-                inset: '-35%',
-                borderRadius: '50%',
-                background: `radial-gradient(circle, ${planet.glow}88 0%, ${planet.glow}00 70%)`,
-                pointerEvents: 'none',
-                '--bloom-duration': `${3.5 + (planet.x % 2)}s`,
-                '--bloom-delay': `${(planet.y % 3) * 0.4}s`,
-              } as React.CSSProperties}
-            />
-            <span
-              className="planet-hotspot-glow"
-              style={{
-                opacity: isHovered ? 1 : 0,
-                boxShadow: `0 0 42px 12px ${planet.glow}dd, 0 0 92px 28px ${planet.glow}77`,
-                transition: 'opacity 0.2s ease, box-shadow 0.2s ease',
-              }}
-            />
-            <span
-              className="planet-hotspot-label"
-              style={{
-                opacity: isHovered ? 1 : 0,
-                color: '#ffffff',
-                textShadow: isHovered
-                  ? `0 0 8px #fff, 0 0 18px ${planet.glow}, 0 0 44px ${planet.glow}, 0 0 90px ${planet.glow}`
-                  : 'none',
-                transition: 'opacity 0.22s ease, text-shadow 0.22s ease',
-                fontSize: 'clamp(10px, 1.4vw, 22px)',
-                fontWeight: 900,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-              }}
-            >
+            <span className="ambient-bloom" style={{ position: 'absolute', inset: '-22%', borderRadius: '50%', background: `radial-gradient(circle, ${planet.glow}40 0%, ${planet.glow}00 72%)`, pointerEvents: 'none', '--bloom-duration': `${3.5 + (planet.x % 2)}s`, '--bloom-delay': `${(planet.y % 3) * 0.4}s` } as React.CSSProperties} />
+            <span className="planet-hotspot-glow" style={{ opacity: isHovered ? 1 : 0, boxShadow: `0 0 34px 8px ${planet.glow}bb, 0 0 72px 20px ${planet.glow}55`, transition: 'opacity 0.2s ease, box-shadow 0.2s ease' }} />
+            <span className="planet-hotspot-label" style={{ opacity: isHovered ? 1 : 0, color: '#ffffff', textShadow: isHovered ? `0 0 7px #fff, 0 0 18px ${planet.glow}, 0 0 44px ${planet.glow}` : 'none', transition: 'opacity 0.22s ease, text-shadow 0.22s ease', fontSize: 'clamp(10px, 1.4vw, 22px)', fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               {planet.label}
             </span>
           </motion.button>
@@ -201,55 +125,35 @@ export default function PortalMap() {
 
       {launch && (
         <div className="portal-launch-overlay">
-          <iframe
-            src={launch.iframeUrl}
-            title={launch.label}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', opacity: launch.videoOver ? 1 : 0, transition: 'opacity 0.8s ease', zIndex: 1 }}
-            allow="fullscreen"
-          />
+          <iframe src={launch.iframeUrl} title={launch.label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', opacity: launch.videoOver ? 1 : 0, transition: 'opacity 0.8s ease', zIndex: 1 }} allow="fullscreen" />
           {!launch.videoOver && (
             <div className="portal-launch-loading">
-              {launch.videoUrl ? (
-                <video src={launch.videoUrl} autoPlay playsInline onEnded={handleVideoEnd} className="portal-launch-video" />
-              ) : (
-                <div style={{ textAlign: 'center', zIndex: 3 }}>
-                  <div className="launch-title" style={{ textShadow: `0 0 20px ${launch.glow}, 0 0 70px ${launch.glow}` }}>{launch.label}</div>
-                  <div className="launch-subtitle">Portal waking up...</div>
-                </div>
-              )}
+              {launch.videoUrl ? <video src={launch.videoUrl} autoPlay playsInline onEnded={handleVideoEnd} className="portal-launch-video" /> : <div style={{ textAlign: 'center', zIndex: 3 }}><div className="launch-title" style={{ textShadow: `0 0 20px ${launch.glow}, 0 0 70px ${launch.glow}` }}>{launch.label}</div><div className="launch-subtitle">Portal waking up...</div></div>}
             </div>
           )}
-          <button onClick={launch.videoOver ? () => setLaunch(null) : handleVideoEnd} className="portal-close-button">
-            {launch.videoOver ? 'Close' : 'Skip'}
-          </button>
+          <button onClick={launch.videoOver ? () => setLaunch(null) : handleVideoEnd} className="portal-close-button">{launch.videoOver ? 'Close' : 'Skip'}</button>
         </div>
       )}
 
       {showAdmin && (
         <div className="admin-overlay">
-          <div className="admin-panel">
+          <div className="admin-panel admin-panel-wide">
             {!adminUnlocked ? (
               <div className="admin-login-card">
                 <p className="admin-kicker">Occu-Med Secure Portal</p>
                 <h2>Admin Access Required</h2>
-                <p className="admin-login-help">Sign in to configure planet links, transition videos, and portal launch settings.</p>
+                <p className="admin-login-help">Sign in to configure planet links and transition videos.</p>
                 <label>Email</label>
                 <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} placeholder="name@occu-med.com" />
                 <label>Password</label>
                 <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} placeholder="Password" />
                 {adminError && <div className="admin-error">{adminError}</div>}
-                <div className="admin-actions">
-                  <button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button>
-                  <button className="admin-btn-save" onClick={handleAdminLogin}>Unlock Admin</button>
-                </div>
+                <div className="admin-actions"><button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button><button className="admin-btn-save" onClick={handleAdminLogin}>Unlock Admin</button></div>
               </div>
             ) : (
               <>
-                <div className="admin-panel-header">
-                  <h2>Admin Command Center</h2>
-                  <p>Configure every planet from this one locked panel. The full admin route is also available at <a href="/admin" style={{ color: '#9ef7ff' }}>Admin Command Center</a>.</p>
-                </div>
-                <div className="admin-grid">
+                <div className="admin-panel-header"><h2>Admin Command Center</h2><p>One locked panel for all planet links and transition videos.</p></div>
+                <div className="admin-grid admin-grid-wide">
                   {PORTALS.map((p) => (
                     <div key={p.id} className="admin-card">
                       <strong style={{ color: p.glow }}>{p.label}</strong>
@@ -262,10 +166,7 @@ export default function PortalMap() {
                     </div>
                   ))}
                 </div>
-                <div className="admin-actions">
-                  <button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button>
-                  <button className="admin-btn-save" onClick={handleSave}>Save Changes</button>
-                </div>
+                <div className="admin-actions"><button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button><button className="admin-btn-save" onClick={handleSave}>Save Changes</button></div>
               </>
             )}
           </div>
