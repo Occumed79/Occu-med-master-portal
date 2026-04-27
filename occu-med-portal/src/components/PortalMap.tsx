@@ -12,30 +12,8 @@ type PlanetSettings = Record<PortalPermissionKey, PlanetSetting>;
 
 // ── Background artwork (SVG) ─────────────────────────────────────────────────
 
-const artworkDataUri =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(`
-    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900'>
-      <defs>
-        <radialGradient id='bg' cx='50%' cy='50%' r='75%'>
-          <stop offset='0%' stop-color='#0a1b5a'/>
-          <stop offset='55%' stop-color='#071237'/>
-          <stop offset='100%' stop-color='#040818'/>
-        </radialGradient>
-      </defs>
-      <rect width='1600' height='900' fill='url(#bg)' />
-      <circle cx='200'  cy='440' r='140' fill='rgba(255,182,72,0.24)' />
-      <circle cx='560'  cy='345' r='65'  fill='rgba(255,155,120,0.20)' />
-      <circle cx='830'  cy='320' r='75'  fill='rgba(255,90,64,0.20)' />
-      <circle cx='640'  cy='475' r='72'  fill='rgba(112,162,255,0.22)' />
-      <circle cx='550'  cy='610' r='58'  fill='rgba(186,120,255,0.22)' />
-      <circle cx='860'  cy='635' r='120' fill='rgba(132,90,255,0.18)' />
-      <circle cx='1090' cy='395' r='90'  fill='rgba(126,162,255,0.20)' />
-      <circle cx='1300' cy='600' r='88'  fill='rgba(153,243,255,0.20)' />
-      <circle cx='1380' cy='402' r='70'  fill='rgba(88,145,255,0.22)' />
-      <circle cx='1535' cy='595' r='55'  fill='rgba(176,135,255,0.24)' />
-    </svg>
-  `);
+// Artwork served from public/assets/
+const ARTWORK_SRC = '/assets/portal-solar-system-final.jpg';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -144,7 +122,7 @@ export default function PortalMap() {
   return (
     <div className="portal-artwork-scene">
       {/* Background artwork */}
-      <img src={artworkDataUri} alt="Occu-Med solar system" className="portal-artwork" />
+      <img src={ARTWORK_SRC} alt="Occu-Med solar system" className="portal-artwork" />
 
       {/* Star field */}
       {STARS.map((s) => (
