@@ -299,19 +299,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  background:
-    radial-gradient(circle at 13% 49%, rgba(255, 182, 72, 0.22) 0 14%, transparent 24%),
-    radial-gradient(circle at 34.5% 38.5%, rgba(255, 155, 120, 0.18) 0 8%, transparent 16%),
-    radial-gradient(circle at 52% 35.6%, rgba(255, 90, 64, 0.2) 0 9%, transparent 18%),
-    radial-gradient(circle at 39.8% 52.7%, rgba(112, 162, 255, 0.18) 0 8%, transparent 16%),
-    radial-gradient(circle at 34.3% 67.5%, rgba(186, 120, 255, 0.2) 0 7%, transparent 14%),
-    radial-gradient(circle at 53.5% 70.3%, rgba(132, 90, 255, 0.18) 0 13%, transparent 24%),
-    radial-gradient(circle at 68.7% 44%, rgba(126, 162, 255, 0.18) 0 10%, transparent 19%),
-    radial-gradient(circle at 81.5% 66.8%, rgba(153, 243, 255, 0.2) 0 11%, transparent 19%),
-    radial-gradient(circle at 86.4% 44.5%, rgba(88, 145, 255, 0.2) 0 8%, transparent 15%),
-    radial-gradient(circle at 96% 66.2%, rgba(176, 135, 255, 0.2) 0 7%, transparent 14%),
-    radial-gradient(circle at 52% 52%, rgba(36, 70, 160, 0.32) 0%, rgba(8, 16, 45, 0.72) 45%, rgba(4, 8, 24, 0.98) 100%);
-  filter: saturate(1.08);
+  object-fit: cover;
+  object-position: center;
 }
 
 .planet-hotspot {
