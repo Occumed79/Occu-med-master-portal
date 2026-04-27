@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,8 +7,70 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import Login from "@/pages/Login";
+import { OPENING_VIDEO_KEY } from "@/lib/config";
 
 const queryClient = new QueryClient();
+
+// ── Opening theme video wrapper ───────────────────────────────────────────────
+
+function OpeningVideo({ onDone }: { onDone: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoUrl = typeof window !== 'undefined'
+    ? localStorage.getItem(OPENING_VIDEO_KEY) ?? ''
+    : '';
+
+  // If no video URL configured, skip straight to portal
+  useEffect(() => {
+    if (!videoUrl) onDone();
+  }, [videoUrl, onDone]);
+
+  if (!videoUrl) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: '#000',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        autoPlay
+        playsInline
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        onEnded={onDone}
+      />
+      {/* Skip button */}
+      <button
+        onClick={onDone}
+        style={{
+          position: 'absolute',
+          bottom: '2rem',
+          right: '2rem',
+          background: 'rgba(255,255,255,0.12)',
+          border: '1px solid rgba(255,255,255,0.3)',
+          color: '#fff',
+          padding: '0.5rem 1.2rem',
+          borderRadius: '999px',
+          cursor: 'pointer',
+          fontSize: '0.85rem',
+          backdropFilter: 'blur(8px)',
+          letterSpacing: '0.1em',
+        }}
+      >
+        Skip ›
+      </button>
+    </div>
+  );
+}
+
+// ── Router ────────────────────────────────────────────────────────────────────
 
 function Router() {
   return (
@@ -20,13 +83,27 @@ function Router() {
   );
 }
 
+// ── App root ──────────────────────────────────────────────────────────────────
+
 function App() {
+  const [introPlayed, setIntroPlayed] = useState(false);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
+        {!introPlayed && <OpeningVideo onDone={() => setIntroPlayed(true)} />}
+        {/* Portal fades in once intro is done (or instantly if no video) */}
+        <div
+          style={{
+            opacity: introPlayed ? 1 : 0,
+            transition: 'opacity 0.8s ease',
+            height: '100vh',
+          }}
+        >
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+        </div>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
