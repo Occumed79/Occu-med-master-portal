@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { PORTALS, STORAGE_KEY, type PortalDef, type PortalPermissionKey } from '../lib/config';
 
@@ -10,9 +10,8 @@ interface PlanetSetting {
 }
 type PlanetSettings = Record<PortalPermissionKey, PlanetSetting>;
 
-// ── Background artwork (SVG) ─────────────────────────────────────────────────
-
-// Artwork served from public/assets/
+// ── Artwork ───────────────────────────────────────────────────────────────────
+// Served from occu-med-portal/public/assets/ (Vite static assets)
 const ARTWORK_SRC = '/assets/portal-solar-system-final.jpg';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -42,37 +41,33 @@ function saveSettings(s: PlanetSettings) {
 
 const STARS = Array.from({ length: 140 }, (_, i) => ({
   id: i,
-  top: `${Math.random() * 100}%`,
-  left: `${Math.random() * 100}%`,
-  size: Math.random() < 0.12 ? Math.random() * 2 + 2 : Math.random() * 1.4 + 0.6,
-  bright: Math.random() < 0.12,
+  top:      `${Math.random() * 100}%`,
+  left:     `${Math.random() * 100}%`,
+  size:     Math.random() < 0.12 ? Math.random() * 2 + 2 : Math.random() * 1.4 + 0.6,
+  bright:   Math.random() < 0.12,
   duration: `${2.8 + Math.random() * 4}s`,
-  delay: `${Math.random() * 6}s`,
+  delay:    `${Math.random() * 6}s`,
 }));
 
-// ── Portal launcher state ────────────────────────────────────────────────────
-// When a planet is clicked:
-//  1. iframeUrl is set  → iframe starts loading the Render app silently in background
-//  2. videoUrl is set   → video overlay plays on top
-//  3. video ends        → video fades out, iframe becomes fully visible (app is warm)
-//  4. if no video       → iframe becomes immediately visible
+// ── Launch state ──────────────────────────────────────────────────────────────
 
 type LaunchState = {
-  iframeUrl: string;       // Render link loading silently
-  videoUrl: string | null; // transition video (null = no video, skip straight to iframe)
-  label: string;           // planet name for the loading screen
-  glow: string;            // planet glow colour
-  videoOver: boolean;      // true once video has ended / been skipped
+  iframeUrl: string;
+  videoUrl: string | null;
+  label: string;
+  glow: string;
+  videoOver: boolean;
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function PortalMap() {
-  const [settings, setSettings]       = useState<PlanetSettings>(loadSettings);
-  const [launch, setLaunch]           = useState<LaunchState | null>(null);
-  const [showAdmin, setShowAdmin]     = useState(false);
-  const [draft, setDraft]             = useState<PlanetSettings>(settings);
-  const [hoveredId, setHoveredId]     = useState<PortalPermissionKey | null>(null);
+  const [settings, setSettings]     = useState<PlanetSettings>(loadSettings);
+  const [launch, setLaunch]         = useState<LaunchState | null>(null);
+  const [showAdmin, setShowAdmin]   = useState(false);
+  const [draft, setDraft]           = useState<PlanetSettings>(settings);
+  const [hoveredId, setHoveredId]   = useState<PortalPermissionKey | null>(null);
+  const sceneRef                    = useRef<HTMLDivElement>(null);
 
   // ── Planet click ─────────────────────────────────────────────────────────
   const handlePlanetClick = (planet: PortalDef) => {
@@ -84,23 +79,19 @@ export default function PortalMap() {
     const conf = settings[planet.id];
     if (!conf?.url) return;
 
-    // Start loading the Render app in the background immediately
     setLaunch({
       iframeUrl: conf.url,
-      videoUrl: conf.videoUrl || null,
-      label: planet.label,
-      glow: planet.glow,
-      videoOver: !conf.videoUrl, // if no video, go straight to iframe view
+      videoUrl:  conf.videoUrl || null,
+      label:     planet.label,
+      glow:      planet.glow,
+      videoOver: !conf.videoUrl,
     });
   };
 
   const handleVideoEnd = () => {
     if (!launch) return;
-    // Video done — reveal the (now warm) iframe
     setLaunch((prev) => prev ? { ...prev, videoOver: true } : null);
   };
-
-  const handleCloseLaunch = () => setLaunch(null);
 
   // ── Admin helpers ────────────────────────────────────────────────────────
   const handleVideoUpload = (id: PortalPermissionKey, file: File | null) => {
@@ -120,27 +111,33 @@ export default function PortalMap() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="portal-artwork-scene">
-      {/* Background artwork */}
-      <img src={ARTWORK_SRC} alt="Occu-Med solar system" className="portal-artwork" />
+    <div ref={sceneRef} className="portal-artwork-scene">
 
-      {/* Star field */}
+      {/* ── Background artwork ─────────────────────────────────────────── */}
+      <img
+        src={ARTWORK_SRC}
+        alt="Occu-Med solar system"
+        className="portal-artwork"
+        style={{ imageRendering: 'auto' }}
+      />
+
+      {/* ── Star field ─────────────────────────────────────────────────── */}
       {STARS.map((s) => (
         <span
           key={s.id}
           className={`star${s.bright ? ' star-bright' : ''}`}
           style={{
-            top: s.top,
-            left: s.left,
-            width: `${s.size}px`,
+            top:    s.top,
+            left:   s.left,
+            width:  `${s.size}px`,
             height: `${s.size}px`,
             '--duration': s.duration,
-            '--delay': s.delay,
+            '--delay':    s.delay,
           } as React.CSSProperties}
         />
       ))}
 
-      {/* Planet hotspots */}
+      {/* ── Planet hotspots ────────────────────────────────────────────── */}
       {PORTALS.map((planet) => {
         const isHovered = hoveredId === planet.id;
         return (
@@ -148,9 +145,9 @@ export default function PortalMap() {
             key={planet.id}
             className="planet-hotspot"
             style={{
-              left: `${planet.x}%`,
-              top: `${planet.y}%`,
-              width: `${planet.size}vmin`,
+              left:   `${planet.x}%`,
+              top:    `${planet.y}%`,
+              width:  `${planet.size}vmin`,
               height: `${planet.size}vmin`,
               '--planet-glow': planet.glow,
             } as React.CSSProperties}
@@ -161,33 +158,44 @@ export default function PortalMap() {
             onHoverEnd={() => setHoveredId(null)}
             aria-label={planet.label}
           >
-            {/* Ambient bloom */}
+            {/* Ambient bloom — always pulsing */}
             <span
               className="ambient-bloom"
               style={{
-                position: 'absolute',
-                inset: '-18%',
+                position:     'absolute',
+                inset:        '-20%',
                 borderRadius: '50%',
-                background: `radial-gradient(circle, ${planet.glow}55 0%, ${planet.glow}00 70%)`,
-                pointerEvents: 'none',
-                '--bloom-duration': `${3.5 + Math.random() * 2}s`,
-                '--bloom-delay': `${Math.random() * 3}s`,
+                background:   `radial-gradient(circle, ${planet.glow}44 0%, ${planet.glow}00 70%)`,
+                pointerEvents:'none',
+                '--bloom-duration': `${3.5 + (planet.x % 2)}s`,
+                '--bloom-delay':    `${(planet.y % 3) * 0.4}s`,
               } as React.CSSProperties}
             />
+
             {/* Hover glow ring */}
             <span
               className="planet-hotspot-glow"
-              style={{ opacity: isHovered ? 1 : 0 }}
+              style={{
+                opacity:    isHovered ? 1 : 0,
+                boxShadow:  `0 0 32px 8px ${planet.glow}cc, 0 0 64px 16px ${planet.glow}55`,
+                transition: 'opacity 0.2s ease, box-shadow 0.2s ease',
+              }}
             />
-            {/* Label */}
+
+            {/* Bold luminous label — appears on hover */}
             <span
               className="planet-hotspot-label"
               style={{
-                opacity: isHovered ? 1 : 0,
+                opacity:    isHovered ? 1 : 0,
+                color:      '#ffffff',
                 textShadow: isHovered
-                  ? `0 0 8px #fff, 0 0 18px ${planet.glow}, 0 0 40px ${planet.glow}`
+                  ? `0 0 6px #fff, 0 0 16px ${planet.glow}, 0 0 36px ${planet.glow}, 0 0 70px ${planet.glow}`
                   : 'none',
-                transition: 'opacity 0.25s ease, text-shadow 0.25s ease',
+                transition: 'opacity 0.22s ease, text-shadow 0.22s ease',
+                fontSize:   'clamp(10px, 1.4vw, 22px)',
+                fontWeight: 900,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
               }}
             >
               {planet.label}
@@ -196,123 +204,103 @@ export default function PortalMap() {
         );
       })}
 
-      {/* ── Launch overlay ────────────────────────────────────────────────── */}
+      {/* ── Launch overlay (iframe + transition video) ──────────────────── */}
       {launch && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9000,
-            background: '#000',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {/* Silent iframe loading Render in background — ALWAYS mounted so it warms up */}
+        <div style={{
+          position:   'fixed',
+          inset:      0,
+          zIndex:     9000,
+          background: '#000',
+          display:    'flex',
+          flexDirection: 'column',
+        }}>
+          {/* Render app loading silently in background */}
           <iframe
             src={launch.iframeUrl}
             title={launch.label}
             style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              // Visible only after video ends
-              opacity: launch.videoOver ? 1 : 0,
-              transition: 'opacity 0.8s ease',
-              zIndex: 1,
+              position:  'absolute',
+              inset:     0,
+              width:     '100%',
+              height:    '100%',
+              border:    'none',
+              opacity:   launch.videoOver ? 1 : 0,
+              transition:'opacity 0.8s ease',
+              zIndex:    1,
             }}
             allow="fullscreen"
           />
 
-          {/* Loading indicator shown while iframe warms up and video plays */}
+          {/* Video / loading screen on top */}
           {!launch.videoOver && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                zIndex: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#000',
-                gap: '1.5rem',
-              }}
-            >
-              {/* Transition video */}
-              {launch.videoUrl && (
+            <div style={{
+              position:       'absolute',
+              inset:          0,
+              zIndex:         2,
+              display:        'flex',
+              flexDirection:  'column',
+              alignItems:     'center',
+              justifyContent: 'center',
+              background:     '#000',
+            }}>
+              {launch.videoUrl ? (
                 <video
                   src={launch.videoUrl}
                   autoPlay
                   playsInline
                   onEnded={handleVideoEnd}
                   style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    zIndex: 3,
+                    position:   'absolute',
+                    inset:      0,
+                    width:      '100%',
+                    height:     '100%',
+                    objectFit:  'cover',
+                    zIndex:     3,
                   }}
                 />
-              )}
-
-              {/* Pulsing planet name shown if no video (or behind video as fallback) */}
-              <div
-                style={{
-                  position: 'relative',
-                  zIndex: 4,
-                  textAlign: 'center',
-                  pointerEvents: 'none',
-                  opacity: launch.videoUrl ? 0 : 1, // only show text when no video
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 'clamp(2rem, 6vw, 5rem)',
-                    fontWeight: 900,
+              ) : (
+                <div style={{ textAlign: 'center', zIndex: 3 }}>
+                  <div style={{
+                    fontSize:      'clamp(2rem, 6vw, 5rem)',
+                    fontWeight:    900,
                     letterSpacing: '0.12em',
                     textTransform: 'uppercase',
-                    color: '#fff',
-                    textShadow: `0 0 20px ${launch.glow}, 0 0 60px ${launch.glow}, 0 0 120px ${launch.glow}`,
-                    animation: 'pulse 2s ease-in-out infinite',
-                  }}
-                >
-                  {launch.label}
-                </div>
-                <div
-                  style={{
-                    marginTop: '1rem',
-                    fontSize: '0.9rem',
-                    color: 'rgba(255,255,255,0.45)',
+                    color:         '#fff',
+                    textShadow:    `0 0 20px ${launch.glow}, 0 0 60px ${launch.glow}`,
+                    animation:     'pulse 2s ease-in-out infinite',
+                  }}>
+                    {launch.label}
+                  </div>
+                  <div style={{
+                    marginTop:     '1rem',
+                    fontSize:      '0.9rem',
+                    color:         'rgba(255,255,255,0.45)',
                     letterSpacing: '0.25em',
                     textTransform: 'uppercase',
-                  }}
-                >
-                  Portal waking up...
+                  }}>
+                    Portal waking up...
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
-          {/* Skip / close button */}
+          {/* Skip / Close */}
           <button
-            onClick={launch.videoOver ? handleCloseLaunch : handleVideoEnd}
+            onClick={launch.videoOver ? () => setLaunch(null) : handleVideoEnd}
             style={{
-              position: 'absolute',
-              bottom: '1.5rem',
-              right: '1.5rem',
-              zIndex: 9999,
-              background: 'rgba(255,255,255,0.10)',
-              border: '1px solid rgba(255,255,255,0.25)',
-              color: '#fff',
-              padding: '0.45rem 1.1rem',
-              borderRadius: '999px',
-              cursor: 'pointer',
-              fontSize: '0.82rem',
-              backdropFilter: 'blur(8px)',
+              position:      'absolute',
+              bottom:        '1.5rem',
+              right:         '1.5rem',
+              zIndex:        9999,
+              background:    'rgba(255,255,255,0.10)',
+              border:        '1px solid rgba(255,255,255,0.25)',
+              color:         '#fff',
+              padding:       '0.45rem 1.1rem',
+              borderRadius:  '999px',
+              cursor:        'pointer',
+              fontSize:      '0.82rem',
+              backdropFilter:'blur(8px)',
               letterSpacing: '0.1em',
             }}
           >
@@ -321,13 +309,13 @@ export default function PortalMap() {
         </div>
       )}
 
-      {/* ── Admin panel (Pluto) ───────────────────────────────────────────── */}
+      {/* ── Admin panel (opened by clicking Pluto) ─────────────────────── */}
       {showAdmin && (
         <div className="admin-overlay">
           <div className="admin-panel">
             <div className="admin-panel-header">
-              <h2>🪐 Admin Panel</h2>
-              <p>Configure the Render link and transition video for each planet.</p>
+              <h2>🪐 Planet Configuration</h2>
+              <p>Set the Render link and transition video for each planet. For full user management, visit <a href="/admin" style={{color:'#9ef7ff'}}>the Admin Command Center</a>.</p>
             </div>
             <div className="admin-grid">
               {PORTALS.map((p) => (
