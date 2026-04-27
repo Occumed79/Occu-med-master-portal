@@ -11,15 +11,12 @@ import { OPENING_VIDEO_KEY } from "@/lib/config";
 
 const queryClient = new QueryClient();
 
-// ── Opening theme video wrapper ───────────────────────────────────────────────
-
 function OpeningVideo({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoUrl = typeof window !== 'undefined'
     ? localStorage.getItem(OPENING_VIDEO_KEY) ?? ''
     : '';
 
-  // If no video URL configured, skip straight to portal
   useEffect(() => {
     if (!videoUrl) onDone();
   }, [videoUrl, onDone]);
@@ -46,7 +43,6 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         onEnded={onDone}
       />
-      {/* Skip button */}
       <button
         onClick={onDone}
         style={{
@@ -70,8 +66,6 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
   );
 }
 
-// ── Router ────────────────────────────────────────────────────────────────────
-
 function Router() {
   return (
     <Switch>
@@ -83,8 +77,6 @@ function Router() {
   );
 }
 
-// ── App root ──────────────────────────────────────────────────────────────────
-
 function App() {
   const [introPlayed, setIntroPlayed] = useState(false);
 
@@ -92,7 +84,6 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {!introPlayed && <OpeningVideo onDone={() => setIntroPlayed(true)} />}
-        {/* Portal fades in once intro is done (or instantly if no video) */}
         <div
           style={{
             opacity: introPlayed ? 1 : 0,
@@ -100,7 +91,7 @@ function App() {
             height: '100vh',
           }}
         >
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <WouterRouter>
             <Router />
           </WouterRouter>
         </div>
