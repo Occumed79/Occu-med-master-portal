@@ -122,7 +122,6 @@ export default function PortalMap() {
         return (
           <motion.button key={planet.id} className="planet-hotspot" style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin`, '--planet-glow': planet.glow } as React.CSSProperties} whileHover={{ scale: 1.025 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }} onClick={() => handlePlanetClick(planet)} onHoverStart={() => onHoverPlanet(planet.id)} onHoverEnd={() => setHoveredId(null)} aria-label={planet.label}>
             <span className="planet-hover-disc" style={{ opacity: isHovered ? 1 : 0 }} />
-            <span className="planet-hotspot-label" style={{ opacity: isHovered ? 1 : 0, textShadow: isHovered ? `0 0 8px #fff, 0 0 18px ${planet.glow}, 0 0 44px ${planet.glow}` : 'none' }}>{planet.label}</span>
           </motion.button>
         );
       })}
