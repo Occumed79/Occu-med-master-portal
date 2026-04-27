@@ -6,10 +6,10 @@ interface PlanetSetting { url: string; videoUrl: string; }
 type PlanetSettings = Record<PortalPermissionKey, PlanetSetting>;
 type AdminTab = 'planets' | 'users' | 'launch';
 type ManagedUser = { email: string; role: 'Admin' | 'User'; permissions: PortalPermissionKey[] };
-
 type LaunchState = { iframeUrl: string; videoUrl: string | null; label: string; glow: string; videoOver: boolean; };
 
 const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
+const HOVER_SOUND_SRC = '/assets/portal-hover-swoosh.mp3';
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL ?? '';
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? '';
 const USERS_KEY = 'occu_med_portal_users_v1';
@@ -25,37 +25,13 @@ function loadSettings(): PlanetSettings {
   if (!raw) return buildEmpty();
   try { return { ...buildEmpty(), ...(JSON.parse(raw) as Partial<PlanetSettings>) }; } catch { return buildEmpty(); }
 }
-
 function saveSettings(s: PlanetSettings) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
-
 function loadUsers(): ManagedUser[] {
   const fallback = [{ email: ADMIN_EMAIL || 'admin@occu-med.com', role: 'Admin' as const, permissions: PORTALS.map((p) => p.permissionKey) }];
   if (typeof window === 'undefined') return fallback;
   const raw = localStorage.getItem(USERS_KEY);
   if (!raw) return fallback;
   try { return JSON.parse(raw) as ManagedUser[]; } catch { return fallback; }
-}
-
-function playHoverSound() {
-  try {
-    const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(520, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.11);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.035, ctx.currentTime + 0.018);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.15);
-  } catch {
-    // Audio is optional and may be blocked until user interaction.
-  }
 }
 
 export default function PortalMap() {
@@ -74,131 +50,84 @@ export default function PortalMap() {
   const [openingVideoUrl, setOpeningVideoUrl] = useState(() => typeof window !== 'undefined' ? localStorage.getItem(OPENING_VIDEO_KEY) ?? '' : '');
   const [audioUrl, setAudioUrl] = useState(() => typeof window !== 'undefined' ? localStorage.getItem(AUDIO_KEY) ?? '' : '');
   const lastSoundRef = useRef(0);
+  const hoverAudioRef = useRef<HTMLAudioElement | null>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
+
+  const playHoverSound = () => {
+    try {
+      if (!hoverAudioRef.current) {
+        hoverAudioRef.current = new Audio(HOVER_SOUND_SRC);
+        hoverAudioRef.current.volume = 0.38;
+        hoverAudioRef.current.preload = 'auto';
+      }
+      hoverAudioRef.current.currentTime = 0;
+      void hoverAudioRef.current.play();
+    } catch {}
+  };
 
   const onHoverPlanet = (id: PortalPermissionKey) => {
     setHoveredId(id);
     const now = Date.now();
-    if (now - lastSoundRef.current > 220) {
+    if (now - lastSoundRef.current > 260) {
       lastSoundRef.current = now;
       playHoverSound();
     }
   };
 
   const handlePlanetClick = (planet: PortalDef) => {
-    if (planet.id === 'admin') {
-      setDraft({ ...settings });
-      setAdminError('');
-      setShowAdmin(true);
-      return;
-    }
+    if (planet.id === 'admin') { setDraft({ ...settings }); setAdminError(''); setShowAdmin(true); return; }
     const conf = settings[planet.id];
     if (!conf?.url) return;
     setLaunch({ iframeUrl: conf.url, videoUrl: conf.videoUrl || null, label: planet.label, glow: planet.glow, videoOver: !conf.videoUrl });
   };
-
   const handleVideoEnd = () => { if (launch) setLaunch((prev) => prev ? { ...prev, videoOver: true } : null); };
-
   const handleVideoUpload = (id: PortalPermissionKey, file: File | null) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setDraft((prev) => ({ ...prev, [id]: { ...prev[id], videoUrl: String(reader.result || '') } }));
     reader.readAsDataURL(file);
   };
-
   const handleOpeningVideoUpload = (file: File | null) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setOpeningVideoUrl(String(reader.result || ''));
     reader.readAsDataURL(file);
   };
-
   const handleSave = () => {
-    setSettings(draft);
-    saveSettings(draft);
+    setSettings(draft); saveSettings(draft);
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
     localStorage.setItem(OPENING_VIDEO_KEY, openingVideoUrl);
     localStorage.setItem(AUDIO_KEY, audioUrl);
     setShowAdmin(false);
   };
-
   const handleAdminLogin = () => {
     if (!ADMIN_EMAIL || !ADMIN_PASSWORD) { setAdminError('Admin credentials are not configured in Render environment variables.'); return; }
-    if (adminEmail.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() && adminPassword === ADMIN_PASSWORD) {
-      setAdminUnlocked(true); setAdminError(''); setAdminEmail(''); setAdminPassword(''); return;
-    }
+    if (adminEmail.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() && adminPassword === ADMIN_PASSWORD) { setAdminUnlocked(true); setAdminError(''); setAdminEmail(''); setAdminPassword(''); return; }
     setAdminError('Incorrect email or password.');
   };
-
   const addUser = () => {
     const email = inviteEmail.trim().toLowerCase();
     if (!email) return;
     setUsers((cur) => cur.some((u) => u.email === email) ? cur : [...cur, { email, role: 'User', permissions: [] }]);
     setInviteEmail('');
   };
-
-  const togglePermission = (email: string, permission: PortalPermissionKey) => {
-    setUsers((cur) => cur.map((u) => u.email !== email ? u : { ...u, permissions: u.permissions.includes(permission) ? u.permissions.filter((p) => p !== permission) : [...u.permissions, permission] }));
-  };
-
+  const togglePermission = (email: string, permission: PortalPermissionKey) => setUsers((cur) => cur.map((u) => u.email !== email ? u : { ...u, permissions: u.permissions.includes(permission) ? u.permissions.filter((p) => p !== permission) : [...u.permissions, permission] }));
   const toggleRole = (email: string) => setUsers((cur) => cur.map((u) => u.email === email ? { ...u, role: u.role === 'Admin' ? 'User' : 'Admin' } : u));
 
   return (
     <div ref={sceneRef} className="portal-artwork-scene">
       <video src={ARTWORK_SRC} className="portal-artwork" autoPlay muted loop playsInline preload="auto" />
-
       {PORTALS.map((planet) => {
         const isHovered = hoveredId === planet.id;
         return (
-          <motion.button
-            key={planet.id}
-            className="planet-hotspot"
-            style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin`, '--planet-glow': planet.glow } as React.CSSProperties}
-            whileHover={{ scale: 1.045 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-            onClick={() => handlePlanetClick(planet)}
-            onHoverStart={() => onHoverPlanet(planet.id)}
-            onHoverEnd={() => setHoveredId(null)}
-            aria-label={planet.label}
-          >
-            <span className="planet-hover-disc" style={{ opacity: isHovered ? 1 : 0, background: `radial-gradient(circle, ${planet.glow}22 0%, ${planet.glow}16 42%, transparent 74%)`, boxShadow: `0 0 22px 5px ${planet.glow}cc, 0 0 54px 16px ${planet.glow}88, inset 0 0 18px ${planet.glow}55` }} />
+          <motion.button key={planet.id} className="planet-hotspot" style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin`, '--planet-glow': planet.glow } as React.CSSProperties} whileHover={{ scale: 1.025 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }} onClick={() => handlePlanetClick(planet)} onHoverStart={() => onHoverPlanet(planet.id)} onHoverEnd={() => setHoveredId(null)} aria-label={planet.label}>
+            <span className="planet-hover-disc" style={{ opacity: isHovered ? 1 : 0 }} />
             <span className="planet-hotspot-label" style={{ opacity: isHovered ? 1 : 0, textShadow: isHovered ? `0 0 8px #fff, 0 0 18px ${planet.glow}, 0 0 44px ${planet.glow}` : 'none' }}>{planet.label}</span>
           </motion.button>
         );
       })}
-
-      {launch && (
-        <div className="portal-launch-overlay">
-          <iframe src={launch.iframeUrl} title={launch.label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', opacity: launch.videoOver ? 1 : 0, transition: 'opacity 0.8s ease', zIndex: 1 }} allow="fullscreen" />
-          {!launch.videoOver && <div className="portal-launch-loading">{launch.videoUrl ? <video src={launch.videoUrl} autoPlay playsInline onEnded={handleVideoEnd} className="portal-launch-video" /> : <div style={{ textAlign: 'center', zIndex: 3 }}><div className="launch-title" style={{ textShadow: `0 0 20px ${launch.glow}, 0 0 70px ${launch.glow}` }}>{launch.label}</div><div className="launch-subtitle">Portal waking up...</div></div>}</div>}
-          <button onClick={launch.videoOver ? () => setLaunch(null) : handleVideoEnd} className="portal-close-button">{launch.videoOver ? 'Close' : 'Skip'}</button>
-        </div>
-      )}
-
-      {showAdmin && (
-        <div className="admin-overlay">
-          <div className="admin-panel admin-panel-wide">
-            {!adminUnlocked ? (
-              <div className="admin-login-card">
-                <p className="admin-kicker">Occu-Med Secure Portal</p><h2>Admin Access Required</h2><p className="admin-login-help">Sign in to configure the full portal command center.</p>
-                <label>Email</label><input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} placeholder="name@occu-med.com" />
-                <label>Password</label><input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} placeholder="Password" />
-                {adminError && <div className="admin-error">{adminError}</div>}
-                <div className="admin-actions"><button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button><button className="admin-btn-save" onClick={handleAdminLogin}>Unlock Admin</button></div>
-              </div>
-            ) : (
-              <>
-                <div className="admin-panel-header"><h2>Admin Command Center</h2><p>One locked panel for planet links, users, permissions, and launch settings.</p></div>
-                <div className="admin-tabs"><button className={adminTab === 'planets' ? 'active' : ''} onClick={() => setAdminTab('planets')}>Planet Portals</button><button className={adminTab === 'users' ? 'active' : ''} onClick={() => setAdminTab('users')}>Users & Permissions</button><button className={adminTab === 'launch' ? 'active' : ''} onClick={() => setAdminTab('launch')}>Launch Experience</button></div>
-                {adminTab === 'planets' && <div className="admin-grid admin-grid-wide">{PORTALS.map((p) => <div key={p.id} className="admin-card"><strong style={{ color: p.glow }}>{p.label}</strong><label>Render URL</label><input type="url" placeholder="https://your-app.onrender.com" value={draft[p.id].url} onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], url: e.target.value } }))} /><label>Transition Video URL</label><input type="url" placeholder="https://...video.mp4" value={draft[p.id].videoUrl.startsWith('data:') ? '' : draft[p.id].videoUrl} onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], videoUrl: e.target.value } }))} /><label>Or upload video file</label><input type="file" accept="video/*" onChange={(e) => handleVideoUpload(p.id, e.target.files?.[0] ?? null)} /></div>)}</div>}
-                {adminTab === 'users' && <div className="admin-users"><div className="admin-invite"><input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addUser()} placeholder="name@occu-med.com" /><button className="admin-btn-save" onClick={addUser}>Add User</button></div>{users.map((u) => <div className="admin-user-row" key={u.email}><div><strong>{u.email}</strong><button onClick={() => toggleRole(u.email)}>{u.role}</button></div><div className="admin-permission-grid">{PORTALS.map((p) => <button key={p.id} className={u.permissions.includes(p.permissionKey) ? 'enabled' : ''} onClick={() => togglePermission(u.email, p.permissionKey)} style={{ '--portal-color': p.glow } as React.CSSProperties}>{p.label}</button>)}</div></div>)}</div>}
-                {adminTab === 'launch' && <div className="admin-launch"><label>Opening Video URL</label><input value={openingVideoUrl.startsWith('data:') ? '' : openingVideoUrl} onChange={(e) => setOpeningVideoUrl(e.target.value)} placeholder="https://...opening.mp4" /><label>Or upload opening video</label><input type="file" accept="video/*" onChange={(e) => handleOpeningVideoUpload(e.target.files?.[0] ?? null)} /><label>Startup Audio URL</label><input value={audioUrl} onChange={(e) => setAudioUrl(e.target.value)} placeholder="https://...ambient.mp3" /></div>}
-                <div className="admin-actions"><button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button><button className="admin-btn-save" onClick={handleSave}>Save Changes</button></div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {launch && <div className="portal-launch-overlay"><iframe src={launch.iframeUrl} title={launch.label} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', opacity: launch.videoOver ? 1 : 0, transition: 'opacity 0.8s ease', zIndex: 1 }} allow="fullscreen" />{!launch.videoOver && <div className="portal-launch-loading">{launch.videoUrl ? <video src={launch.videoUrl} autoPlay playsInline onEnded={handleVideoEnd} className="portal-launch-video" /> : <div style={{ textAlign: 'center', zIndex: 3 }}><div className="launch-title" style={{ textShadow: `0 0 20px ${launch.glow}, 0 0 70px ${launch.glow}` }}>{launch.label}</div><div className="launch-subtitle">Portal waking up...</div></div>}</div>}<button onClick={launch.videoOver ? () => setLaunch(null) : handleVideoEnd} className="portal-close-button">{launch.videoOver ? 'Close' : 'Skip'}</button></div>}
+      {showAdmin && <div className="admin-overlay"><div className="admin-panel admin-panel-wide">{!adminUnlocked ? <div className="admin-login-card"><p className="admin-kicker">Occu-Med Secure Portal</p><h2>Admin Access Required</h2><p className="admin-login-help">Sign in to configure the full portal command center.</p><label>Email</label><input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} placeholder="name@occu-med.com" /><label>Password</label><input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} placeholder="Password" />{adminError && <div className="admin-error">{adminError}</div>}<div className="admin-actions"><button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button><button className="admin-btn-save" onClick={handleAdminLogin}>Unlock Admin</button></div></div> : <><div className="admin-panel-header"><h2>Admin Command Center</h2><p>One locked panel for planet links, users, permissions, and launch settings.</p></div><div className="admin-tabs"><button className={adminTab === 'planets' ? 'active' : ''} onClick={() => setAdminTab('planets')}>Planet Portals</button><button className={adminTab === 'users' ? 'active' : ''} onClick={() => setAdminTab('users')}>Users & Permissions</button><button className={adminTab === 'launch' ? 'active' : ''} onClick={() => setAdminTab('launch')}>Launch Experience</button></div>{adminTab === 'planets' && <div className="admin-grid admin-grid-wide">{PORTALS.map((p) => <div key={p.id} className="admin-card"><strong style={{ color: p.glow }}>{p.label}</strong><label>Render URL</label><input type="url" placeholder="https://your-app.onrender.com" value={draft[p.id].url} onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], url: e.target.value } }))} /><label>Transition Video URL</label><input type="url" placeholder="https://...video.mp4" value={draft[p.id].videoUrl.startsWith('data:') ? '' : draft[p.id].videoUrl} onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], videoUrl: e.target.value } }))} /><label>Or upload video file</label><input type="file" accept="video/*" onChange={(e) => handleVideoUpload(p.id, e.target.files?.[0] ?? null)} /></div>)}</div>}{adminTab === 'users' && <div className="admin-users"><div className="admin-invite"><input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addUser()} placeholder="name@occu-med.com" /><button className="admin-btn-save" onClick={addUser}>Add User</button></div>{users.map((u) => <div className="admin-user-row" key={u.email}><div><strong>{u.email}</strong><button onClick={() => toggleRole(u.email)}>{u.role}</button></div><div className="admin-permission-grid">{PORTALS.map((p) => <button key={p.id} className={u.permissions.includes(p.permissionKey) ? 'enabled' : ''} onClick={() => togglePermission(u.email, p.permissionKey)} style={{ '--portal-color': p.glow } as React.CSSProperties}>{p.label}</button>)}</div></div>)}</div>}{adminTab === 'launch' && <div className="admin-launch"><label>Opening Video URL</label><input value={openingVideoUrl.startsWith('data:') ? '' : openingVideoUrl} onChange={(e) => setOpeningVideoUrl(e.target.value)} placeholder="https://...opening.mp4" /><label>Or upload opening video</label><input type="file" accept="video/*" onChange={(e) => handleOpeningVideoUpload(e.target.files?.[0] ?? null)} /><label>Startup Audio URL</label><input value={audioUrl} onChange={(e) => setAudioUrl(e.target.value)} placeholder="https://...ambient.mp3" /></div>}<div className="admin-actions"><button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button><button className="admin-btn-save" onClick={handleSave}>Save Changes</button></div></>}</div></div>}
     </div>
   );
 }
