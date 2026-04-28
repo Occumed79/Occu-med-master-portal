@@ -27,6 +27,7 @@ export default function Admin() {
   const [audioUrl, setAudioUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const permissionsGridColumns = `grid-cols-[minmax(190px,1.2fr)_96px_repeat(${PORTALS.length},minmax(72px,1fr))]`;
 
   const canManage = useMemo(() => !isLive || isAdmin, [isLive, isAdmin]);
 
@@ -167,13 +168,13 @@ export default function Admin() {
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-white/10">
-                <div className="grid grid-cols-[minmax(190px,1.2fr)_96px_repeat(7,minmax(72px,1fr))] bg-white/10 px-3 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">
+                <div className={`grid ${permissionsGridColumns} bg-white/10 px-3 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/55`}>
                   <span>User</span>
                   <span>Role</span>
                   {PORTALS.map((portal) => <span key={portal.id} className="text-center">{portal.label}</span>)}
                 </div>
                 {users.map((managedUser) => (
-                  <div key={managedUser.email} className="grid grid-cols-[minmax(190px,1.2fr)_96px_repeat(7,minmax(72px,1fr))] items-center border-t border-white/10 px-3 py-3 text-sm">
+                  <div key={managedUser.email} className={`grid ${permissionsGridColumns} items-center border-t border-white/10 px-3 py-3 text-sm`}>
                     <span className="truncate text-white/85">{managedUser.email}</span>
                     <button
                       onClick={() => toggleRole(managedUser.email)}
