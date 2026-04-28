@@ -15,8 +15,8 @@ type ManagedUser = {
 
 const previewUsers: ManagedUser[] = [
   { email: 'admin@occu-med.example', role: 'Admin', permissions: PORTALS.map((portal) => portal.permissionKey) },
-  { email: 'operations@occu-med.example', role: 'User', permissions: ['operations', 'network', 'exam_qa'] },
-  { email: 'publicrelations@occu-med.example', role: 'User', permissions: ['pr'] },
+  { email: 'operations@occu-med.example', role: 'User', permissions: ['jupiter', 'uranus', 'mercury'] },
+  { email: 'publicrelations@occu-med.example', role: 'User', permissions: ['venus'] },
 ];
 
 export default function Admin() {

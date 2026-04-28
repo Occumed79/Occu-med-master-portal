@@ -1,243 +1,326 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { loadPortalState, savePortalState, uploadPortalAsset } from '@/lib/portalBackend';
+import { OPENING_VIDEO_KEY, PORTALS, STORAGE_KEY, type PortalDef, type PortalPermissionKey } from '@/lib/config';
+import { loadPortalState, savePortalState, uploadPortalAsset, type ManagedUser, type PlanetSettings } from '@/lib/portalBackend';
 
-const STORAGE_KEY = 'occu_med_planet_routes_v1';
-const artworkDataUri =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(`
-    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900'>
-      <defs>
-        <radialGradient id='bg' cx='50%' cy='50%' r='75%'>
-          <stop offset='0%' stop-color='#0a1b5a'/>
-          <stop offset='55%' stop-color='#071237'/>
-          <stop offset='100%' stop-color='#040818'/>
-        </radialGradient>
-      </defs>
-      <rect width='1600' height='900' fill='url(#bg)' />
-      <circle cx='200' cy='440' r='140' fill='rgba(255,182,72,0.24)' />
-      <circle cx='560' cy='345' r='65' fill='rgba(255,155,120,0.20)' />
-      <circle cx='830' cy='320' r='75' fill='rgba(255,90,64,0.20)' />
-      <circle cx='640' cy='475' r='72' fill='rgba(112,162,255,0.22)' />
-      <circle cx='550' cy='610' r='58' fill='rgba(186,120,255,0.22)' />
-      <circle cx='860' cy='635' r='120' fill='rgba(132,90,255,0.18)' />
-      <circle cx='1090' cy='395' r='90' fill='rgba(126,162,255,0.20)' />
-      <circle cx='1300' cy='600' r='88' fill='rgba(153,243,255,0.20)' />
-      <circle cx='1380' cy='402' r='70' fill='rgba(88,145,255,0.22)' />
-      <circle cx='1535' cy='595' r='55' fill='rgba(176,135,255,0.24)' />
-    </svg>
-  `);
+type AdminTab = 'planets' | 'users' | 'launch';
+type LaunchState = { iframeUrl: string; videoUrl: string | null; label: string; glow: string; videoOver: boolean };
 
-type PlanetId =
-  | 'sun'
-  | 'mercury'
-  | 'venus'
-  | 'earth'
-  | 'mars'
-  | 'jupiter'
-  | 'saturn'
-  | 'uranus'
-  | 'neptune'
-  | 'pluto';
+const USERS_KEY = 'occu_med_portal_users_v1';
+const AUDIO_KEY = 'occu_med_startup_audio_url_v1';
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL ?? '';
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? '';
+const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
 
-interface PlanetDef {
-  id: PlanetId;
-  label: string;
-  x: number;
-  y: number;
-  size: number;
-  glow: string;
+function buildEmpty(): PlanetSettings {
+  return Object.fromEntries(PORTALS.map((p) => [p.id, { url: p.url, videoUrl: p.videoUrl }])) as PlanetSettings;
 }
-
-interface PlanetSetting {
-  url: string;
-  videoUrl: string;
-}
-
-type PlanetSettings = Record<PlanetId, PlanetSetting>;
-
-const PLANETS: PlanetDef[] = [
-  { id: 'sun', label: 'Leadership', x: 12, y: 49, size: 22.5, glow: '#ffb54b' },
-  { id: 'mercury', label: 'ExamQA', x: 34.5, y: 38.5, size: 10, glow: '#ffad8d' },
-  { id: 'venus', label: 'Scheduling', x: 52, y: 35.6, size: 11, glow: '#ff6e4f' },
-  { id: 'earth', label: 'Harvesting', x: 39.8, y: 52.7, size: 10.8, glow: '#74a9ff' },
-  { id: 'mars', label: 'SME', x: 34.3, y: 67.5, size: 9.1, glow: '#c86cff' },
-  { id: 'jupiter', label: 'Operations', x: 53.5, y: 70.3, size: 19, glow: '#a56dff' },
-  { id: 'saturn', label: 'New', x: 68.7, y: 44, size: 14.5, glow: '#7ea2ff' },
-  { id: 'uranus', label: 'Network', x: 81.5, y: 66.8, size: 14, glow: '#9ef7ff' },
-  { id: 'neptune', label: 'Shared', x: 86.4, y: 44.5, size: 10.8, glow: '#5d93ff' },
-  { id: 'pluto', label: 'Admin', x: 96, y: 66.2, size: 9.3, glow: '#ad86ff' },
-];
-
-const emptySettings: PlanetSettings = {
-  sun: { url: '', videoUrl: '' },
-  mercury: { url: '', videoUrl: '' },
-  venus: { url: '', videoUrl: '' },
-  earth: { url: '', videoUrl: '' },
-  mars: { url: '', videoUrl: '' },
-  jupiter: { url: '', videoUrl: '' },
-  saturn: { url: '', videoUrl: '' },
-  uranus: { url: '', videoUrl: '' },
-  neptune: { url: '', videoUrl: '' },
-  pluto: { url: '', videoUrl: '' },
-};
 
 function loadSettings(): PlanetSettings {
-  if (typeof window === 'undefined') return emptySettings;
+  if (typeof window === 'undefined') return buildEmpty();
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return emptySettings;
+  if (!raw) return buildEmpty();
   try {
-    return { ...emptySettings, ...(JSON.parse(raw) as Partial<PlanetSettings>) };
+    return { ...buildEmpty(), ...(JSON.parse(raw) as Partial<PlanetSettings>) };
   } catch {
-    return emptySettings;
+    return buildEmpty();
   }
 }
 
-function saveSettings(settings: PlanetSettings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+function saveSettings(s: PlanetSettings) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+}
+
+function loadUsers(): ManagedUser[] {
+  const fallback: ManagedUser[] = [
+    {
+      email: ADMIN_EMAIL || 'admin@occu-med.com',
+      role: 'Admin',
+      permissions: PORTALS.map((p) => p.permissionKey),
+    },
+  ];
+  if (typeof window === 'undefined') return fallback;
+  const raw = localStorage.getItem(USERS_KEY);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as ManagedUser[];
+  } catch {
+    return fallback;
+  }
 }
 
 export default function PortalMap() {
   const [settings, setSettings] = useState<PlanetSettings>(loadSettings);
-  const [activeVideo, setActiveVideo] = useState<{ url: string; targetUrl: string } | null>(null);
+  const [launch, setLaunch] = useState<LaunchState | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
   const [draft, setDraft] = useState<PlanetSettings>(settings);
-  const [saving, setSaving] = useState(false);
-  const [uploadingPlanet, setUploadingPlanet] = useState<PlanetId | null>(null);
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState('');
+  const [adminTab, setAdminTab] = useState<AdminTab>('planets');
+  const [users, setUsers] = useState<ManagedUser[]>(loadUsers);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [openingVideoUrl, setOpeningVideoUrl] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem(OPENING_VIDEO_KEY) ?? '' : ''));
+  const [audioUrl, setAudioUrl] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem(AUDIO_KEY) ?? '' : ''));
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAsset, setIsUploadingAsset] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
     let mounted = true;
-    void loadPortalState<PlanetSettings>(emptySettings).then((backendSettings) => {
-      if (!mounted) return;
-      setSettings(backendSettings);
-      setDraft(backendSettings);
-      saveSettings(backendSettings);
+    void loadPortalState().then((backendState) => {
+      if (!mounted || !backendState) return;
+      if (backendState.settings) {
+        setSettings((prev) => ({ ...prev, ...backendState.settings }));
+        setDraft((prev) => ({ ...prev, ...backendState.settings }));
+      }
+      if (backendState.users) setUsers(backendState.users);
+      if (typeof backendState.openingVideoUrl === 'string') setOpeningVideoUrl(backendState.openingVideoUrl);
+      if (typeof backendState.audioUrl === 'string') setAudioUrl(backendState.audioUrl);
     });
     return () => {
       mounted = false;
     };
   }, []);
 
-  const handlePlanetClick = (planet: PlanetDef) => {
-    if (planet.id === 'pluto') {
-      setDraft(settings);
+  const handlePlanetClick = (planet: PortalDef) => {
+    if (planet.id === 'admin') {
+      setDraft({ ...settings });
+      setAdminError('');
       setShowAdmin(true);
       return;
     }
-
     const conf = settings[planet.id];
     if (!conf?.url) return;
-    if (conf.videoUrl) {
-      setActiveVideo({ url: conf.videoUrl, targetUrl: conf.url });
-      return;
-    }
-    window.open(conf.url, '_blank', 'noopener,noreferrer');
+    setLaunch({ iframeUrl: conf.url, videoUrl: conf.videoUrl || null, label: planet.label, glow: planet.glow, videoOver: !conf.videoUrl });
   };
 
   const handleVideoEnd = () => {
-    if (!activeVideo) return;
-    window.open(activeVideo.targetUrl, '_blank', 'noopener,noreferrer');
-    setActiveVideo(null);
+    setLaunch((prev) => (prev ? { ...prev, videoOver: true } : null));
   };
 
-  const handleVideoUpload = async (planetId: PlanetId, file: File | null) => {
+  const handleVideoUpload = async (id: PortalPermissionKey, file: File | null) => {
     if (!file) return;
+    setIsUploadingAsset(true);
+    setSaveMessage('');
+    try {
+      const publicUrl = await uploadPortalAsset(file, 'transitions');
+      setDraft((prev) => ({ ...prev, [id]: { ...prev[id], videoUrl: publicUrl } }));
+      setSaveMessage('Transition video uploaded. Click Save Changes to publish.');
+    } catch {
+      setSaveMessage('Video upload failed. Please check Supabase Storage settings.');
+      alert('Video upload failed. Please check Supabase Storage settings.');
+    } finally {
+      setIsUploadingAsset(false);
+    }
+  };
 
-    setUploadingPlanet(planetId);
-    const { url, error } = await uploadPortalAsset(file, 'opening');
+  const handleOpeningVideoUpload = async (file: File | null) => {
+    if (!file) return;
+    setIsUploadingAsset(true);
+    setSaveMessage('');
+    try {
+      const publicUrl = await uploadPortalAsset(file, 'opening');
+      setOpeningVideoUrl(publicUrl);
+      setSaveMessage('Opening video uploaded. Click Save Changes to publish.');
+    } catch {
+      setSaveMessage('Opening video upload failed. Please check Supabase Storage settings.');
+      alert('Opening video upload failed. Please check Supabase Storage settings.');
+    } finally {
+      setIsUploadingAsset(false);
+    }
+  };
 
-    if (url) {
-      setDraft((prev) => ({ ...prev, [planetId]: { ...prev[planetId], videoUrl: url } }));
-      setUploadingPlanet(null);
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveMessage('');
+    const payload = { settings: draft, users, openingVideoUrl, audioUrl };
+    try {
+      await savePortalState(payload);
+      setSaveMessage('Saved successfully.');
+      setShowAdmin(false);
+    } catch {
+      setSaveMessage('Backend save failed. Saved locally only.');
+      alert('Backend save failed. Saved locally only.');
+    } finally {
+      setSettings(draft);
+      saveSettings(draft);
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      localStorage.setItem(OPENING_VIDEO_KEY, openingVideoUrl);
+      localStorage.setItem(AUDIO_KEY, audioUrl);
+      setIsSaving(false);
+    }
+  };
+
+  const handleAdminLogin = () => {
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      setAdminError('Admin credentials are not configured in Render environment variables.');
       return;
     }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || '');
-      setDraft((prev) => ({ ...prev, [planetId]: { ...prev[planetId], videoUrl: dataUrl } }));
-      setUploadingPlanet(null);
-      alert(`Opening video upload failed. ${error || 'Saved locally only.'}`);
-    };
-    reader.readAsDataURL(file);
+    if (adminEmail.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() && adminPassword === ADMIN_PASSWORD) {
+      setAdminUnlocked(true);
+      setAdminError('');
+      setAdminEmail('');
+      setAdminPassword('');
+      return;
+    }
+    setAdminError('Incorrect email or password.');
   };
+
+  const addUser = () => {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email) return;
+    setUsers((cur) => (cur.some((u) => u.email === email) ? cur : [...cur, { email, role: 'User', permissions: [] }]));
+    setInviteEmail('');
+  };
+
+  const togglePermission = (email: string, permission: PortalPermissionKey) =>
+    setUsers((cur) =>
+      cur.map((u) =>
+        u.email !== email
+          ? u
+          : {
+              ...u,
+              permissions: u.permissions.includes(permission) ? u.permissions.filter((p) => p !== permission) : [...u.permissions, permission],
+            },
+      ),
+    );
+
+  const toggleRole = (email: string) =>
+    setUsers((cur) => cur.map((u) => (u.email === email ? { ...u, role: u.role === 'Admin' ? 'User' : 'Admin' } : u)));
 
   return (
     <div className="portal-artwork-scene">
-      <img src={artworkDataUri} alt="Occu-Med solar artwork" className="portal-artwork" />
+      <video src={ARTWORK_SRC} className="portal-artwork" autoPlay muted loop playsInline preload="auto" />
 
-      {PLANETS.map((planet) => (
+      {PORTALS.map((planet) => (
         <motion.button
           key={planet.id}
           className="planet-hotspot"
-          style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin`, '--planet-glow': planet.glow } as React.CSSProperties}
-          whileHover={{ scale: 1.05 }}
+          style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin` } as React.CSSProperties}
+          whileHover={{ scale: 1.01 }}
           transition={{ type: 'spring', stiffness: 260, damping: 18 }}
           onClick={() => handlePlanetClick(planet)}
           aria-label={planet.label}
-        >
-          <span className="planet-hotspot-glow" />
-          <span className="planet-hotspot-label">{planet.label}</span>
-        </motion.button>
+          title={planet.label}
+        />
       ))}
 
-      {activeVideo && (
-        <div className="video-overlay">
-          <video src={activeVideo.url} controls autoPlay onEnded={handleVideoEnd} className="video-player" />
-          <button className="video-close" onClick={() => setActiveVideo(null)}>Close</button>
+      {launch && (
+        <div className="portal-launch-overlay">
+          <iframe
+            src={launch.iframeUrl}
+            title={launch.label}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', opacity: launch.videoOver ? 1 : 0, transition: 'opacity 0.8s ease', zIndex: 1 }}
+            allow="fullscreen"
+          />
+          {!launch.videoOver && (
+            <div className="portal-launch-loading">
+              {launch.videoUrl ? (
+                <video src={launch.videoUrl} autoPlay playsInline onEnded={handleVideoEnd} className="portal-launch-video" />
+              ) : (
+                <div style={{ textAlign: 'center', zIndex: 3 }}>
+                  <div className="launch-title" style={{ textShadow: `0 0 20px ${launch.glow}, 0 0 70px ${launch.glow}` }}>{launch.label}</div>
+                  <div className="launch-subtitle">Portal waking up...</div>
+                </div>
+              )}
+            </div>
+          )}
+          <button onClick={launch.videoOver ? () => setLaunch(null) : handleVideoEnd} className="portal-close-button">{launch.videoOver ? 'Close' : 'Skip'}</button>
         </div>
       )}
 
       {showAdmin && (
         <div className="admin-overlay">
-          <div className="admin-panel">
-            <h2>Pluto Admin Panel</h2>
-            <p>Set video + destination URL for each planet.</p>
-            <div className="admin-grid">
-              {PLANETS.map((p) => (
-                <div key={p.id} className="admin-card">
-                  <strong>{p.label}</strong>
-                  <input
-                    type="url"
-                    placeholder="https://portal-url"
-                    value={draft[p.id].url}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], url: e.target.value } }))}
-                  />
-                  <input
-                    type="url"
-                    placeholder="https://video-url.mp4"
-                    value={draft[p.id].videoUrl.startsWith('data:') ? '' : draft[p.id].videoUrl}
-                    onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], videoUrl: e.target.value } }))}
-                  />
-                  <input
-                    type="file"
-                    accept="video/*"
-                    disabled={uploadingPlanet === p.id}
-                    onChange={(e) => void handleVideoUpload(p.id, e.target.files?.[0] ?? null)}
-                  />
-                  {uploadingPlanet === p.id && <small>Uploading...</small>}
+          <div className="admin-panel admin-panel-wide">
+            {!adminUnlocked ? (
+              <div className="admin-login-card">
+                <p className="admin-kicker">Occu-Med Secure Portal</p>
+                <h2>Admin Access Required</h2>
+                <p className="admin-login-help">Sign in to configure the full portal command center.</p>
+                <label>Email</label>
+                <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} placeholder="name@occu-med.com" />
+                <label>Password</label>
+                <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} placeholder="Password" />
+                {adminError && <div className="admin-error">{adminError}</div>}
+                <div className="admin-actions">
+                  <button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button>
+                  <button className="admin-btn-save" onClick={handleAdminLogin}>Unlock Admin</button>
                 </div>
-              ))}
-            </div>
-            <div className="admin-actions">
-              <button disabled={saving} onClick={() => setShowAdmin(false)}>Cancel</button>
-              <button
-                disabled={saving}
-                onClick={async () => {
-                  setSaving(true);
-                  setSettings(draft);
-                  saveSettings(draft);
-                  const result = await savePortalState(draft);
-                  setShowAdmin(false);
-                  setSaving(false);
-                  if (!result.ok) {
-                    alert(`Backend save failed. Saved locally only. ${result.error || ''}`.trim());
-                  }
-                }}
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
+              </div>
+            ) : (
+              <>
+                <div className="admin-panel-header">
+                  <h2>Admin Command Center</h2>
+                  <p>One locked panel for planet links, users, permissions, and launch settings.</p>
+                  {saveMessage && <div className="admin-save-message">{saveMessage}</div>}
+                </div>
+                <div className="admin-tabs">
+                  <button className={adminTab === 'planets' ? 'active' : ''} onClick={() => setAdminTab('planets')}>Planet Portals</button>
+                  <button className={adminTab === 'users' ? 'active' : ''} onClick={() => setAdminTab('users')}>Users & Permissions</button>
+                  <button className={adminTab === 'launch' ? 'active' : ''} onClick={() => setAdminTab('launch')}>Launch Experience</button>
+                </div>
+
+                {adminTab === 'planets' && (
+                  <div className="admin-grid admin-grid-wide">
+                    {PORTALS.map((p) => (
+                      <div key={p.id} className="admin-card">
+                        <strong style={{ color: p.glow }}>{p.label}</strong>
+                        <label>Render URL</label>
+                        <input type="url" placeholder="https://your-app.onrender.com" value={draft[p.id].url} onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], url: e.target.value } }))} />
+                        <label>Transition Video URL</label>
+                        <input type="url" placeholder="https://...video.mp4" value={draft[p.id].videoUrl} onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], videoUrl: e.target.value } }))} />
+                        <label>Or upload video file</label>
+                        <input type="file" accept="video/*" onChange={(e) => void handleVideoUpload(p.id, e.target.files?.[0] ?? null)} disabled={isUploadingAsset} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {adminTab === 'users' && (
+                  <div className="admin-users">
+                    <div className="admin-invite">
+                      <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addUser()} placeholder="name@occu-med.com" />
+                      <button className="admin-btn-save" onClick={addUser}>Add User</button>
+                    </div>
+                    {users.map((u) => (
+                      <div className="admin-user-row" key={u.email}>
+                        <div>
+                          <strong>{u.email}</strong>
+                          <button onClick={() => toggleRole(u.email)}>{u.role}</button>
+                        </div>
+                        <div className="admin-permission-grid">
+                          {PORTALS.map((p) => (
+                            <button key={p.id} className={u.permissions.includes(p.permissionKey) ? 'enabled' : ''} onClick={() => togglePermission(u.email, p.permissionKey)} style={{ '--portal-color': p.glow } as React.CSSProperties}>
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {adminTab === 'launch' && (
+                  <div className="admin-launch">
+                    <label>Opening Video URL</label>
+                    <input value={openingVideoUrl} onChange={(e) => setOpeningVideoUrl(e.target.value)} placeholder="https://...opening.mp4" />
+                    <label>Or upload opening video</label>
+                    <input type="file" accept="video/*" onChange={(e) => void handleOpeningVideoUpload(e.target.files?.[0] ?? null)} disabled={isUploadingAsset} />
+                    <label>Startup Audio URL</label>
+                    <input value={audioUrl} onChange={(e) => setAudioUrl(e.target.value)} placeholder="https://...ambient.mp3" />
+                  </div>
+                )}
+
+                <div className="admin-actions">
+                  <button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button>
+                  <button className="admin-btn-save" onClick={handleSave} disabled={isSaving || isUploadingAsset}>
+                    {isSaving ? 'Saving...' : isUploadingAsset ? 'Uploading...' : 'Save Changes'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
