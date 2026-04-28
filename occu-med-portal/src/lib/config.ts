@@ -37,3 +37,4 @@ export const PORTALS: PortalDef[] = [
 
 export const STORAGE_KEY = 'occu_med_planet_routes_v1';
 export const OPENING_VIDEO_KEY = 'occu_med_opening_video_v1';
+export const AUDIO_KEY = 'occu_med_startup_audio_url_v1';

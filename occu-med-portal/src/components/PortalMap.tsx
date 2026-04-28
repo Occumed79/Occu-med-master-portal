@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { OPENING_VIDEO_KEY, PORTALS, STORAGE_KEY, type PortalDef, type PortalPermissionKey } from '@/lib/config';
+import { AUDIO_KEY, OPENING_VIDEO_KEY, PORTALS, STORAGE_KEY, type PortalDef, type PortalPermissionKey } from '@/lib/config';
 import { loadPortalState, savePortalState, uploadPortalAsset, type ManagedUser, type PlanetSettings } from '@/lib/portalBackend';
 
 type AdminTab = 'planets' | 'users' | 'launch';
 type LaunchState = { iframeUrl: string; videoUrl: string | null; label: string; glow: string; videoOver: boolean };
 
 const USERS_KEY = 'occu_med_portal_users_v1';
-const AUDIO_KEY = 'occu_med_startup_audio_url_v1';
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL ?? '';
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? '';
 const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';

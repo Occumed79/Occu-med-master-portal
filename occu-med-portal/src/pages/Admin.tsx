@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { PORTALS, type PortalPermissionKey } from '../lib/config';
+import { AUDIO_KEY, PORTALS, type PortalPermissionKey } from '../lib/config';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 
@@ -24,7 +24,9 @@ export default function Admin() {
   const [, setLocation] = useLocation();
   const [users, setUsers] = useState<ManagedUser[]>(previewUsers);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [audioUrl, setAudioUrl] = useState('');
+  const [audioUrl, setAudioUrl] = useState(() => (
+    typeof window !== 'undefined' ? localStorage.getItem(AUDIO_KEY) ?? '' : ''
+  ));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const permissionsGridTemplate = `minmax(190px,1.2fr) 96px repeat(${PORTALS.length}, minmax(72px,1fr))`;
@@ -108,7 +110,7 @@ export default function Admin() {
         const { error } = await supabase.from('portal_users').upsert(users, { onConflict: 'email' });
         if (error) throw error;
       }
-      localStorage.setItem('occu-med-startup-audio-url', audioUrl);
+      localStorage.setItem(AUDIO_KEY, audioUrl);
       setMessage(isLive ? 'Permissions saved to Supabase.' : 'Preview permissions saved locally.');
     } catch {
       setMessage('Unable to save. Check the Supabase table and row-level security policy setup.');
