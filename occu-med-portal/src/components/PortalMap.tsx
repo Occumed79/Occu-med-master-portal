@@ -208,21 +208,6 @@ export default function PortalMap() {
     setInviteEmail('');
   };
 
-  const togglePermission = (email: string, permission: PortalPermissionKey) =>
-    setUsers((cur) =>
-      cur.map((u) =>
-        u.email !== email
-          ? u
-          : {
-              ...u,
-              permissions: u.permissions.includes(permission) ? u.permissions.filter((p) => p !== permission) : [...u.permissions, permission],
-            },
-      ),
-    );
-
-  const toggleRole = (email: string) =>
-    setUsers((cur) => cur.map((u) => (u.email === email ? { ...u, role: u.role === 'Admin' ? 'User' : 'Admin' } : u)));
-
   return (
     <div className="portal-artwork-scene">
       <video src={ARTWORK_SRC} className="portal-artwork" autoPlay muted loop playsInline preload="auto" />
