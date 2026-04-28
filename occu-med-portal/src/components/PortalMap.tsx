@@ -94,7 +94,8 @@ export default function PortalMap() {
     }
     const conf = settings[planet.id];
     if (!conf?.url) return;
-    setLaunch({ iframeUrl: conf.url, videoUrl: conf.videoUrl || null, label: planet.label, glow: planet.glow, videoOver: !conf.videoUrl });
+    const transitionVideo = conf.videoUrl || openingVideoUrl || null;
+    setLaunch({ iframeUrl: conf.url, videoUrl: transitionVideo, label: planet.label, glow: planet.glow, videoOver: !transitionVideo });
   };
 
   const handleVideoEnd = () => {
