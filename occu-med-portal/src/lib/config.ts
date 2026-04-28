@@ -1,13 +1,13 @@
 export type PortalPermissionKey =
-  | 'sun'
-  | 'mercury'
-  | 'venus'
-  | 'earth'
-  | 'mars'
-  | 'jupiter'
-  | 'saturn'
-  | 'uranus'
-  | 'neptune'
+  | 'leadership'
+  | 'exam_qa'
+  | 'scheduling'
+  | 'harvesting'
+  | 'sme'
+  | 'operations'
+  | 'new'
+  | 'network'
+  | 'shared'
   | 'admin';
 
 export interface PortalDef {
@@ -23,15 +23,15 @@ export interface PortalDef {
 }
 
 export const PORTALS: PortalDef[] = [
-  { id: 'sun', label: 'Leadership', permissionKey: 'sun', url: '', videoUrl: '', glow: '#ffb54b', x: 12, y: 49, size: 22.5 },
-  { id: 'mercury', label: 'ExamQA', permissionKey: 'mercury', url: '', videoUrl: '', glow: '#ffad8d', x: 34.5, y: 38.5, size: 10 },
-  { id: 'venus', label: 'Scheduling', permissionKey: 'venus', url: '', videoUrl: '', glow: '#ff6e4f', x: 52, y: 35.6, size: 11 },
-  { id: 'earth', label: 'Harvesting', permissionKey: 'earth', url: '', videoUrl: '', glow: '#74a9ff', x: 39.8, y: 52.7, size: 10.8 },
-  { id: 'mars', label: 'SME', permissionKey: 'mars', url: '', videoUrl: '', glow: '#c86cff', x: 34.3, y: 67.5, size: 9.1 },
-  { id: 'jupiter', label: 'Operations', permissionKey: 'jupiter', url: '', videoUrl: '', glow: '#a56dff', x: 53.5, y: 70.3, size: 19 },
-  { id: 'saturn', label: 'New', permissionKey: 'saturn', url: '', videoUrl: '', glow: '#7ea2ff', x: 68.7, y: 44, size: 14.5 },
-  { id: 'uranus', label: 'Network', permissionKey: 'uranus', url: '', videoUrl: '', glow: '#9ef7ff', x: 81.5, y: 66.8, size: 14 },
-  { id: 'neptune', label: 'Shared', permissionKey: 'neptune', url: '', videoUrl: '', glow: '#5d93ff', x: 86.4, y: 44.5, size: 10.8 },
+  { id: 'leadership', label: 'Leadership', permissionKey: 'leadership', url: '', videoUrl: '', glow: '#ffd35c', x: 12.6, y: 50.4, size: 19.8 },
+  { id: 'exam_qa', label: 'ExamQA', permissionKey: 'exam_qa', url: '', videoUrl: '', glow: '#ffcf8d', x: 29.2, y: 31.1, size: 10.5 },
+  { id: 'scheduling', label: 'Scheduling', permissionKey: 'scheduling', url: '', videoUrl: '', glow: '#ff704d', x: 50.9, y: 29.1, size: 12.7 },
+  { id: 'harvesting', label: 'Harvesting', permissionKey: 'harvesting', url: '', videoUrl: '', glow: '#67a7ff', x: 37.2, y: 51.1, size: 11.4 },
+  { id: 'sme', label: 'SME', permissionKey: 'sme', url: '', videoUrl: '', glow: '#d66cff', x: 31.2, y: 67.3, size: 10.4 },
+  { id: 'operations', label: 'Operations', permissionKey: 'operations', url: '', videoUrl: '', glow: '#b061ff', x: 51.6, y: 69.8, size: 19.0 },
+  { id: 'new', label: 'New', permissionKey: 'new', url: '', videoUrl: '', glow: '#5f8cff', x: 69.3, y: 39.0, size: 15.4 },
+  { id: 'network', label: 'Network', permissionKey: 'network', url: '', videoUrl: '', glow: '#9ef7ff', x: 77.9, y: 66.6, size: 14.3 },
+  { id: 'shared', label: 'Shared', permissionKey: 'shared', url: '', videoUrl: '', glow: '#29a8ff', x: 86.7, y: 36.5, size: 10.8 },
   { id: 'admin', label: 'Admin', permissionKey: 'admin', url: '', videoUrl: '', glow: '#ad86ff', x: 96, y: 66.2, size: 9.3 },
 ];
 
