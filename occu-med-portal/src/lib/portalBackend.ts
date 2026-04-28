@@ -15,10 +15,10 @@ export type ManagedUser = {
 };
 
 export type PortalBackendState = {
-  settings: PlanetSettings;
-  users: ManagedUser[];
-  openingVideoUrl: string;
-  audioUrl: string;
+  settings?: Partial<PlanetSettings>;
+  users?: ManagedUser[];
+  openingVideoUrl?: string;
+  audioUrl?: string;
 };
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -30,7 +30,7 @@ const supabase =
     ? createClient(supabaseUrl, supabaseAnonKey)
     : null;
 
-export async function loadPortalState(): Promise<Partial<PortalBackendState> | null> {
+export async function loadPortalState(): Promise<PortalBackendState | null> {
   if (!supabase) return null;
 
   const { data, error } = await supabase
@@ -44,7 +44,7 @@ export async function loadPortalState(): Promise<Partial<PortalBackendState> | n
     return null;
   }
 
-  return (data?.data as Partial<PortalBackendState> | undefined) ?? null;
+  return (data?.data as PortalBackendState | undefined) ?? null;
 }
 
 export async function savePortalState(state: PortalBackendState): Promise<void> {

@@ -35,8 +35,9 @@ export const PORTALS: PortalDef[] = [
   { id: 'new', label: 'New', permissionKey: 'new', url: '', videoUrl: '', glow: '#5f8cff', x: 69.3, y: 39.0, size: 15.4 },
   { id: 'network', label: 'Network', permissionKey: 'network', url: '', videoUrl: '', glow: '#9ef7ff', x: 77.9, y: 66.6, size: 14.3 },
   { id: 'shared', label: 'Shared', permissionKey: 'shared', url: '', videoUrl: '', glow: '#29a8ff', x: 86.7, y: 36.5, size: 10.8 },
-  { id: 'admin', label: 'Admin', permissionKey: 'admin', url: '', videoUrl: '', glow: '#ad86ff', x: 95.3, y: 64.7, size: 9.2 },
+  { id: 'admin', label: 'Admin', permissionKey: 'admin', url: '', videoUrl: '', glow: '#ad86ff', x: 96, y: 66.2, size: 9.3 },
 ];
 
-export const STORAGE_KEY = 'occu_med_planet_routes_v2';
-export const OPENING_VIDEO_KEY = 'occu_med_opening_video_url';
+export const STORAGE_KEY = 'occu_med_planet_routes_v1';
+export const OPENING_VIDEO_KEY = 'occu_med_opening_video_v1';
+export const AUDIO_KEY = 'occu_med_startup_audio_url_v1';

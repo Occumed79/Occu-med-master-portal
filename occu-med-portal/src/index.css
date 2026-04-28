@@ -106,44 +106,6 @@
   cursor: pointer;
   outline: none;
   z-index: 4;
-  display: grid;
-  place-items: center;
-}
-
-.planet-hover-disc {
-  position: absolute;
-  inset: -4%;
-  border-radius: 50%;
-  pointer-events: none;
-  background: radial-gradient(circle, color-mix(in srgb, var(--planet-glow) 34%, transparent) 0%, color-mix(in srgb, var(--planet-glow) 20%, transparent) 42%, transparent 72%);
-  box-shadow:
-    0 0 18px 4px color-mix(in srgb, var(--planet-glow) 88%, transparent),
-    0 0 44px 14px color-mix(in srgb, var(--planet-glow) 58%, transparent),
-    0 0 84px 26px color-mix(in srgb, var(--planet-glow) 32%, transparent),
-    inset 0 0 24px color-mix(in srgb, var(--planet-glow) 46%, transparent);
-  transition: opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease;
-  transform: scale(1.02);
-}
-
-.planet-hotspot:hover .planet-hover-disc {
-  transform: scale(1.07);
-}
-
-.planet-hotspot-label {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: clamp(13px, 1.7vw, 30px);
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #ffffff;
-  opacity: 0;
-  transition: opacity 180ms ease, text-shadow 180ms ease, transform 180ms ease;
-  transform: translateY(0.04em);
-  pointer-events: none;
-  white-space: nowrap;
 }
 
 .portal-launch-overlay {
@@ -171,7 +133,15 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center center;
   z-index: 3;
+}
+
+.portal-launch-media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
 }
 
 .launch-title {
@@ -194,7 +164,7 @@
 .portal-close-button {
   position: absolute;
   bottom: 1.5rem;
-  right: 1.5rem;
+  left: 1.5rem;
   z-index: 9999;
   background: rgba(255,255,255,0.10);
   border: 1px solid rgba(255,255,255,0.25);
@@ -262,13 +232,7 @@
   box-shadow: 0 0 22px rgba(158,247,255,0.22);
 }
 
-.admin-login-card {
-  display: grid;
-  gap: 10px;
-  max-width: 440px;
-  margin: 0 auto;
-}
-
+.admin-login-card { display: grid; gap: 10px; max-width: 440px; margin: 0 auto; }
 .admin-kicker { margin: 0; color: #9ef7ff; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; }
 .admin-login-card h2 { margin: 0; font-size: 1.7rem; }
 .admin-login-help { color: rgba(255,255,255,0.62); font-size: 0.9rem; }

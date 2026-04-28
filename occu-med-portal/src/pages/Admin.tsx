@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { PORTALS, STORAGE_KEY, OPENING_VIDEO_KEY, type PortalPermissionKey } from '../lib/config';
+import { AUDIO_KEY, PORTALS, type PortalPermissionKey } from '../lib/config';
 import { supabase } from '../lib/supabase';
 import { uploadPortalAsset } from '../lib/portalBackend';
 import { useAuth } from '../hooks/useAuth';
@@ -15,9 +15,9 @@ type ManagedUser = {
 };
 
 const previewUsers: ManagedUser[] = [
-  { email: 'admin@occu-med.example',         role: 'Admin', permissions: PORTALS.map((p) => p.permissionKey) },
-  { email: 'operations@occu-med.example',    role: 'User',  permissions: ['operations', 'network', 'exam_qa'] },
-  { email: 'staff@occu-med.example',         role: 'User',  permissions: ['scheduling', 'harvesting'] },
+  { email: 'admin@occu-med.example', role: 'Admin', permissions: PORTALS.map((portal) => portal.permissionKey) },
+  { email: 'operations@occu-med.example', role: 'User', permissions: ['operations', 'network', 'exam_qa'] },
+  { email: 'staff@occu-med.example', role: 'User', permissions: ['scheduling', 'harvesting'] },
 ];
 
 export default function Admin() {
@@ -27,16 +27,12 @@ export default function Admin() {
   // ── State ──────────────────────────────────────────────────────────────
   const [users, setUsers]           = useState<ManagedUser[]>(previewUsers);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [audioUrl, setAudioUrl]     = useState(() =>
-    typeof window !== 'undefined' ? localStorage.getItem('occu-med-startup-audio-url') ?? '' : ''
-  );
-  const [openingVideoUrl, setOpeningVideoUrl] = useState(() =>
-    typeof window !== 'undefined' ? localStorage.getItem(OPENING_VIDEO_KEY) ?? '' : ''
-  );
-  const [saving, setSaving]         = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [message, setMessage]       = useState('');
-  const [activeTab, setActiveTab]   = useState<'users' | 'portals' | 'launch'>('users');
+  const [audioUrl, setAudioUrl] = useState(() => (
+    typeof window !== 'undefined' ? localStorage.getItem(AUDIO_KEY) ?? '' : ''
+  ));
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const permissionsGridTemplate = `minmax(190px,1.2fr) 96px repeat(${PORTALS.length}, minmax(72px,1fr))`;
 
   const canManage = useMemo(() => !isLive || isAdmin, [isLive, isAdmin]);
 
@@ -143,9 +139,8 @@ export default function Admin() {
         const { error } = await supabase.from('portal_users').upsert(users, { onConflict: 'email' });
         if (error) throw error;
       }
-      localStorage.setItem('occu-med-startup-audio-url', audioUrl);
-      localStorage.setItem(OPENING_VIDEO_KEY, openingVideoUrl);
-      setMessage(isLive ? '✅ Settings saved to Supabase.' : '✅ Preview settings saved locally.');
+      localStorage.setItem(AUDIO_KEY, audioUrl);
+      setMessage(isLive ? 'Permissions saved to Supabase.' : 'Preview permissions saved locally.');
     } catch {
       setMessage('❌ Unable to save. Check Supabase table and RLS policy setup.');
     } finally {
@@ -401,14 +396,37 @@ export default function Admin() {
                 or update them here and save.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {PORTALS.map((portal) => {
-                  const saved = planetSettings?.[portal.id];
-                  return (
-                    <div
-                      key={portal.id}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-4"
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 md:flex-row">
+                <input
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  placeholder="name@occu-med.com"
+                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-cyan-200/50"
+                />
+                <Button onClick={inviteUser} disabled={!canManage} className="bg-white text-black hover:bg-cyan-100">Invite by Email</Button>
+              </div>
+
+              <div className="overflow-hidden rounded-2xl border border-white/10">
+                <div
+                  className="grid bg-white/10 px-3 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/55"
+                  style={{ gridTemplateColumns: permissionsGridTemplate }}
+                >
+                  <span>User</span>
+                  <span>Role</span>
+                  {PORTALS.map((portal) => <span key={portal.id} className="text-center">{portal.label}</span>)}
+                </div>
+                {users.map((managedUser) => (
+                  <div
+                    key={managedUser.email}
+                    className="grid items-center border-t border-white/10 px-3 py-3 text-sm"
+                    style={{ gridTemplateColumns: permissionsGridTemplate }}
+                  >
+                    <span className="truncate text-white/85">{managedUser.email}</span>
+                    <button
+                      onClick={() => toggleRole(managedUser.email)}
+                      className="mr-3 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/75 transition hover:bg-white/10"
+                      disabled={!canManage}
                     >
                       <div className="flex items-center gap-3 mb-2">
                         <span
