@@ -151,8 +151,31 @@ export default function Admin() {
     }
   };
 
-  const handleOpeningVideoUpload = (file: File | null) => {
+  const handleOpeningVideoUpload = async (file: File | null) => {
     if (!file) return;
+    setMessage('');
+    // If Supabase is available, upload to Storage
+    if (supabase) {
+      try {
+        const ext = file.name.split('.').pop() ?? 'mp4';
+        const fileName = `opening-video-${Date.now()}.${ext}`;
+        const { data, error } = await supabase.storage
+          .from('portal-videos')
+          .upload(fileName, file, { upsert: true, contentType: file.type });
+        if (error) throw error;
+        const { data: publicData } = supabase.storage
+          .from('portal-videos')
+          .getPublicUrl(data.path);
+        setOpeningVideoUrl(publicData.publicUrl);
+        setMessage('✅ Video uploaded to Supabase Storage.');
+        return;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        setMessage(`Opening video upload failed: ${msg}. Make sure a "portal-videos" bucket exists in Supabase Storage with public access enabled.`);
+        return;
+      }
+    }
+    // Fallback: store as data URL locally (preview mode)
     const reader = new FileReader();
     reader.onload = () => setOpeningVideoUrl(String(reader.result || ''));
     reader.readAsDataURL(file);
@@ -514,3 +537,4 @@ export default function Admin() {
     </div>
   );
 }
+
