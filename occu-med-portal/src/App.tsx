@@ -10,15 +10,17 @@ import Login from "@/pages/Login";
 import { OPENING_VIDEO_KEY } from "@/lib/config";
 
 const queryClient = new QueryClient();
-const DEFAULT_OPENING_VIDEO_URL = '/assets/opening-video.mp4';
+
+// Fallback to the background video already bundled in public/assets
+const FALLBACK_VIDEO_URL = '/assets/portal-solar-system-bg.mp4';
 
 function OpeningVideo({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [canStart, setCanStart] = useState(false);
   const [failed, setFailed] = useState(false);
   const videoUrl = useMemo(() => {
-    if (typeof window === 'undefined') return DEFAULT_OPENING_VIDEO_URL;
-    return localStorage.getItem(OPENING_VIDEO_KEY) || DEFAULT_OPENING_VIDEO_URL;
+    if (typeof window === 'undefined') return FALLBACK_VIDEO_URL;
+    return localStorage.getItem(OPENING_VIDEO_KEY) || FALLBACK_VIDEO_URL;
   }, []);
 
   useEffect(() => {
@@ -48,16 +50,27 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
         onCanPlay={() => setCanStart(true)}
         onEnded={onDone}
         onError={() => {
+          // If even the fallback fails, just proceed
           setFailed(true);
           onDone();
         }}
       />
       {!canStart && (
-        <button className="opening-start-button" onClick={() => videoRef.current?.play().then(() => setCanStart(true)).catch(onDone)}>
+        <button
+          className="opening-start-button"
+          onClick={() =>
+            videoRef.current
+              ?.play()
+              .then(() => setCanStart(true))
+              .catch(onDone)
+          }
+        >
           Enter Portal
         </button>
       )}
-      <button onClick={onDone} className="opening-skip-button">Skip ›</button>
+      <button onClick={onDone} className="opening-skip-button">
+        Skip ›
+      </button>
     </div>
   );
 }
@@ -80,7 +93,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {!introPlayed && <OpeningVideo onDone={() => setIntroPlayed(true)} />}
-        <div style={{ opacity: introPlayed ? 1 : 0, transition: 'opacity 0.8s ease', height: '100vh' }}>
+        <div
+          style={{
+            opacity: introPlayed ? 1 : 0,
+            transition: 'opacity 0.8s ease',
+            height: '100vh',
+          }}
+        >
           <WouterRouter>
             <Router />
           </WouterRouter>
