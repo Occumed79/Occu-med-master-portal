@@ -1,3 +1,5 @@
+// ─── Single source of truth for all planet portals ───────────────────────────
+
 export type PortalPermissionKey =
   | 'leadership'
   | 'exam_qa'
@@ -22,6 +24,7 @@ export interface PortalDef {
   size: number;
 }
 
+// Working hover map. Labels are baked into the video; these invisible hotspots drive glow, sound, and clicks.
 export const PORTALS: PortalDef[] = [
   { id: 'leadership', label: 'Leadership', permissionKey: 'leadership', url: '', videoUrl: '', glow: '#ffd35c', x: 12.6, y: 50.4, size: 19.8 },
   { id: 'exam_qa', label: 'ExamQA', permissionKey: 'exam_qa', url: '', videoUrl: '', glow: '#ffcf8d', x: 29.2, y: 31.1, size: 10.5 },

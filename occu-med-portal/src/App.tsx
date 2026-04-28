@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,8 +7,60 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import Login from "@/pages/Login";
+import { OPENING_VIDEO_KEY } from "@/lib/config";
 
 const queryClient = new QueryClient();
+const DEFAULT_OPENING_VIDEO_URL = '/assets/opening-video.mp4';
+
+function OpeningVideo({ onDone }: { onDone: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [canStart, setCanStart] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const videoUrl = useMemo(() => {
+    if (typeof window === 'undefined') return DEFAULT_OPENING_VIDEO_URL;
+    return localStorage.getItem(OPENING_VIDEO_KEY) || DEFAULT_OPENING_VIDEO_URL;
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = true;
+    const attempt = video.play();
+    if (attempt) {
+      attempt
+        .then(() => setCanStart(true))
+        .catch(() => setCanStart(false));
+    }
+  }, [videoUrl]);
+
+  if (failed) return null;
+
+  return (
+    <div className="opening-video-overlay">
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        autoPlay
+        muted
+        playsInline
+        preload="auto"
+        className="opening-video"
+        onCanPlay={() => setCanStart(true)}
+        onEnded={onDone}
+        onError={() => {
+          setFailed(true);
+          onDone();
+        }}
+      />
+      {!canStart && (
+        <button className="opening-start-button" onClick={() => videoRef.current?.play().then(() => setCanStart(true)).catch(onDone)}>
+          Enter Portal
+        </button>
+      )}
+      <button onClick={onDone} className="opening-skip-button">Skip ›</button>
+    </div>
+  );
+}
 
 function Router() {
   return (
@@ -21,12 +74,17 @@ function Router() {
 }
 
 function App() {
+  const [introPlayed, setIntroPlayed] = useState(false);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
+        {!introPlayed && <OpeningVideo onDone={() => setIntroPlayed(true)} />}
+        <div style={{ opacity: introPlayed ? 1 : 0, transition: 'opacity 0.8s ease', height: '100vh' }}>
+          <WouterRouter>
+            <Router />
+          </WouterRouter>
+        </div>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
