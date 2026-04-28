@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { OPENING_VIDEO_KEY, PORTALS, STORAGE_KEY, type PortalDef, type PortalPermissionKey } from '@/lib/config';
 import { loadPortalState, savePortalState, uploadPortalAsset, type ManagedUser, type PlanetSettings } from '@/lib/portalBackend';
@@ -66,6 +66,8 @@ export default function PortalMap() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAsset, setIsUploadingAsset] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const launchVideoRef = useRef<HTMLVideoElement | null>(null);
+  const launchAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -97,8 +99,38 @@ export default function PortalMap() {
   };
 
   const handleVideoEnd = () => {
+    if (launchAudioRef.current) {
+      launchAudioRef.current.pause();
+      launchAudioRef.current.currentTime = 0;
+    }
     setLaunch((prev) => (prev ? { ...prev, videoOver: true } : null));
   };
+
+  const handleLaunchClose = () => {
+    if (launchAudioRef.current) {
+      launchAudioRef.current.pause();
+      launchAudioRef.current.currentTime = 0;
+    }
+    setLaunch(null);
+  };
+
+  useEffect(() => {
+    if (!launch || launch.videoOver) return;
+    const video = launchVideoRef.current;
+    if (video) {
+      video.currentTime = 0;
+      void video.play().catch(() => {
+        setSaveMessage('Video autoplay was blocked by the browser. Tap Skip or interact to continue.');
+      });
+    }
+    const audio = launchAudioRef.current;
+    if (audio?.src) {
+      audio.currentTime = 0;
+      void audio.play().catch(() => {
+        setSaveMessage('Audio autoplay was blocked by the browser.');
+      });
+    }
+  }, [launch]);
 
   const handleVideoUpload = async (id: PortalPermissionKey, file: File | null) => {
     if (!file) return;
@@ -218,16 +250,19 @@ export default function PortalMap() {
           {!launch.videoOver && (
             <div className="portal-launch-loading">
               {launch.videoUrl ? (
-                <video src={launch.videoUrl} autoPlay playsInline onEnded={handleVideoEnd} className="portal-launch-video" />
+                <div className="portal-launch-media">
+                  <video ref={launchVideoRef} src={launch.videoUrl} autoPlay playsInline onEnded={handleVideoEnd} className="portal-launch-video" />
+                </div>
               ) : (
                 <div style={{ textAlign: 'center', zIndex: 3 }}>
                   <div className="launch-title" style={{ textShadow: `0 0 20px ${launch.glow}, 0 0 70px ${launch.glow}` }}>{launch.label}</div>
                   <div className="launch-subtitle">Portal waking up...</div>
                 </div>
               )}
+              {audioUrl && <audio ref={launchAudioRef} src={audioUrl} autoPlay />}
             </div>
           )}
-          <button onClick={launch.videoOver ? () => setLaunch(null) : handleVideoEnd} className="portal-close-button">{launch.videoOver ? 'Close' : 'Skip'}</button>
+          <button onClick={launch.videoOver ? handleLaunchClose : handleVideoEnd} className="portal-close-button">{launch.videoOver ? 'Close' : 'Skip'}</button>
         </div>
       )}
 
