@@ -1,199 +1,329 @@
-import { motion } from 'framer-motion';
-import { PORTALS } from '../lib/config';
-import bgImage from '@assets/ChatGPT_Image_Apr_19,_2026,_07_56_01_PM_copy_2_1776690199128.png';
-import { useAuth } from '../hooks/useAuth';
-import { Link } from 'wouter';
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { OPENING_VIDEO_KEY, PORTALS, STORAGE_KEY, type PortalDef, type PortalPermissionKey } from '@/lib/config';
+import { loadPortalState, savePortalState, uploadPortalAsset, type ManagedUser, type PlanetSettings } from '@/lib/portalBackend';
 
-const INTRO_KEY = 'occu-med-portal-intro-v2';
+type AdminTab = 'planets' | 'users' | 'launch';
+type LaunchState = { iframeUrl: string; videoUrl: string | null; label: string; glow: string; videoOver: boolean };
 
-function checkFirstVisit() {
-  if (typeof window === 'undefined') return false;
-  const params = new URLSearchParams(window.location.search);
-  return params.get('skipIntro') !== '1' && localStorage.getItem(INTRO_KEY) !== 'true';
+const USERS_KEY = 'occu_med_portal_users_v1';
+const AUDIO_KEY = 'occu_med_startup_audio_url_v1';
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL ?? '';
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? '';
+const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
+
+function buildEmpty(): PlanetSettings {
+  return Object.fromEntries(PORTALS.map((p) => [p.id, { url: p.url, videoUrl: p.videoUrl }])) as PlanetSettings;
 }
 
-// 220 stars distributed across the canvas
-const stars = Array.from({ length: 220 }, (_, i) => ({
-  id: i,
-  left: Number(((i * 37.3 + (i % 7) * 13.7) % 100).toFixed(2)),
-  top:  Number(((i * 61.7 + (i % 5) * 17.3) % 100).toFixed(2)),
-  size: 0.8 + (i % 5) * 0.45,
-  duration: 2.5 + (i % 9) * 0.55,
-  delay: (i % 17) * 0.19,
-  bright: i % 9 === 0, // every 9th star gets cross-sparkle
-}));
+function loadSettings(): PlanetSettings {
+  if (typeof window === 'undefined') return buildEmpty();
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return buildEmpty();
+  try {
+    return { ...buildEmpty(), ...(JSON.parse(raw) as Partial<PlanetSettings>) };
+  } catch {
+    return buildEmpty();
+  }
+}
 
-type LogoState = 'hidden' | 'glow' | 'flare' | 'persist';
+function saveSettings(s: PlanetSettings) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+}
+
+function loadUsers(): ManagedUser[] {
+  const fallback: ManagedUser[] = [
+    {
+      email: ADMIN_EMAIL || 'admin@occu-med.com',
+      role: 'Admin',
+      permissions: PORTALS.map((p) => p.permissionKey),
+    },
+  ];
+  if (typeof window === 'undefined') return fallback;
+  const raw = localStorage.getItem(USERS_KEY);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as ManagedUser[];
+  } catch {
+    return fallback;
+  }
+}
 
 export default function PortalMap() {
-  const { permissions, isLive, isAdmin } = useAuth();
-
-  const [introActive, setIntroActive] = useState(checkFirstVisit);
-  const [logoState, setLogoState] = useState<LogoState>(() =>
-    checkFirstVisit() ? 'hidden' : 'persist'
-  );
+  const [settings, setSettings] = useState<PlanetSettings>(loadSettings);
+  const [launch, setLaunch] = useState<LaunchState | null>(null);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [draft, setDraft] = useState<PlanetSettings>(settings);
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState('');
+  const [adminTab, setAdminTab] = useState<AdminTab>('planets');
+  const [users, setUsers] = useState<ManagedUser[]>(loadUsers);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [openingVideoUrl, setOpeningVideoUrl] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem(OPENING_VIDEO_KEY) ?? '' : ''));
+  const [audioUrl, setAudioUrl] = useState(() => (typeof window !== 'undefined' ? localStorage.getItem(AUDIO_KEY) ?? '' : ''));
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAsset, setIsUploadingAsset] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
-    if (!introActive) return;
+    let mounted = true;
+    void loadPortalState().then((backendState) => {
+      if (!mounted || !backendState) return;
+      if (backendState.settings) {
+        setSettings((prev) => ({ ...prev, ...backendState.settings }));
+        setDraft((prev) => ({ ...prev, ...backendState.settings }));
+      }
+      if (backendState.users) setUsers(backendState.users);
+      if (typeof backendState.openingVideoUrl === 'string') setOpeningVideoUrl(backendState.openingVideoUrl);
+      if (typeof backendState.audioUrl === 'string') setAudioUrl(backendState.audioUrl);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-    const timers = [
-      setTimeout(() => setLogoState('glow'),    950),
-      setTimeout(() => setLogoState('flare'),  1200),
-      setTimeout(() => setLogoState('persist'), 2100),
-      setTimeout(() => {
-        localStorage.setItem(INTRO_KEY, 'true');
-        setIntroActive(false);
-      }, 3400),
-    ];
-
-    return () => timers.forEach(clearTimeout);
-  }, [introActive]);
-
-  const handlePortalClick = (portal: (typeof PORTALS)[0]) => {
-    if (!permissions.includes(portal.permissionKey)) return;
-    window.open(portal.url, '_blank', 'noopener,noreferrer');
+  const handlePlanetClick = (planet: PortalDef) => {
+    if (planet.id === 'admin') {
+      setDraft({ ...settings });
+      setAdminError('');
+      setShowAdmin(true);
+      return;
+    }
+    const conf = settings[planet.id];
+    if (!conf?.url) return;
+    setLaunch({ iframeUrl: conf.url, videoUrl: conf.videoUrl || null, label: planet.label, glow: planet.glow, videoOver: !conf.videoUrl });
   };
 
+  const handleVideoEnd = () => {
+    setLaunch((prev) => (prev ? { ...prev, videoOver: true } : null));
+  };
+
+  const handleVideoUpload = async (id: PortalPermissionKey, file: File | null) => {
+    if (!file) return;
+    setIsUploadingAsset(true);
+    setSaveMessage('');
+    try {
+      const publicUrl = await uploadPortalAsset(file, 'transitions');
+      setDraft((prev) => ({ ...prev, [id]: { ...prev[id], videoUrl: publicUrl } }));
+      setSaveMessage('Transition video uploaded. Click Save Changes to publish.');
+    } catch {
+      setSaveMessage('Video upload failed. Please check Supabase Storage settings.');
+      alert('Video upload failed. Please check Supabase Storage settings.');
+    } finally {
+      setIsUploadingAsset(false);
+    }
+  };
+
+  const handleOpeningVideoUpload = async (file: File | null) => {
+    if (!file) return;
+    setIsUploadingAsset(true);
+    setSaveMessage('');
+    try {
+      const publicUrl = await uploadPortalAsset(file, 'opening');
+      setOpeningVideoUrl(publicUrl);
+      setSaveMessage('Opening video uploaded. Click Save Changes to publish.');
+    } catch {
+      setSaveMessage('Opening video upload failed. Please check Supabase Storage settings.');
+      alert('Opening video upload failed. Please check Supabase Storage settings.');
+    } finally {
+      setIsUploadingAsset(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveMessage('');
+    const payload = { settings: draft, users, openingVideoUrl, audioUrl };
+    try {
+      await savePortalState(payload);
+      setSaveMessage('Saved successfully.');
+      setShowAdmin(false);
+    } catch {
+      setSaveMessage('Backend save failed. Saved locally only.');
+      alert('Backend save failed. Saved locally only.');
+    } finally {
+      setSettings(draft);
+      saveSettings(draft);
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      localStorage.setItem(OPENING_VIDEO_KEY, openingVideoUrl);
+      localStorage.setItem(AUDIO_KEY, audioUrl);
+      setIsSaving(false);
+    }
+  };
+
+  const handleAdminLogin = () => {
+    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+      setAdminError('Admin credentials are not configured in Render environment variables.');
+      return;
+    }
+    if (adminEmail.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() && adminPassword === ADMIN_PASSWORD) {
+      setAdminUnlocked(true);
+      setAdminError('');
+      setAdminEmail('');
+      setAdminPassword('');
+      return;
+    }
+    setAdminError('Incorrect email or password.');
+  };
+
+  const addUser = () => {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email) return;
+    setUsers((cur) => (cur.some((u) => u.email === email) ? cur : [...cur, { email, role: 'User', permissions: [] }]));
+    setInviteEmail('');
+  };
+
+  const togglePermission = (email: string, permission: PortalPermissionKey) =>
+    setUsers((cur) =>
+      cur.map((u) =>
+        u.email !== email
+          ? u
+          : {
+              ...u,
+              permissions: u.permissions.includes(permission) ? u.permissions.filter((p) => p !== permission) : [...u.permissions, permission],
+            },
+      ),
+    );
+
+  const toggleRole = (email: string) =>
+    setUsers((cur) => cur.map((u) => (u.email === email ? { ...u, role: u.role === 'Admin' ? 'User' : 'Admin' } : u)));
+
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-black">
+    <div className="portal-artwork-scene">
+      <video src={ARTWORK_SRC} className="portal-artwork" autoPlay muted loop playsInline preload="auto" />
 
-      {/* Background — no extra filters that soften the image */}
-      <img
-        src={bgImage}
-        alt="Occu-Med galaxy portal"
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{ imageRendering: 'auto', transform: 'translateZ(0)' }}
-      />
+      {PORTALS.map((planet) => (
+        <motion.button
+          key={planet.id}
+          className="planet-hotspot"
+          style={{ left: `${planet.x}%`, top: `${planet.y}%`, width: `${planet.size}vmin`, height: `${planet.size}vmin` } as React.CSSProperties}
+          whileHover={{ scale: 1.01 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+          onClick={() => handlePlanetClick(planet)}
+          aria-label={planet.label}
+          title={planet.label}
+        />
+      ))}
 
-      {/* Vignette */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.5)_100%)]" />
-
-      {/* Stars */}
-      <div className="pointer-events-none absolute inset-0">
-        {stars.map((star) => (
-          <div
-            key={star.id}
-            className={star.bright ? 'star star-bright' : 'star'}
-            style={{
-              left: `${star.left}%`,
-              top:  `${star.top}%`,
-              width:  `${star.size}px`,
-              height: `${star.size}px`,
-              '--duration': `${star.duration}s`,
-              '--delay':    `${star.delay}s`,
-            } as React.CSSProperties}
+      {launch && (
+        <div className="portal-launch-overlay">
+          <iframe
+            src={launch.iframeUrl}
+            title={launch.label}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', opacity: launch.videoOver ? 1 : 0, transition: 'opacity 0.8s ease', zIndex: 1 }}
+            allow="fullscreen"
           />
-        ))}
-      </div>
-
-      {/* Comet intro — only rendered on first visit */}
-      {introActive && (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="comet-head" />
+          {!launch.videoOver && (
+            <div className="portal-launch-loading">
+              {launch.videoUrl ? (
+                <video src={launch.videoUrl} autoPlay playsInline onEnded={handleVideoEnd} className="portal-launch-video" />
+              ) : (
+                <div style={{ textAlign: 'center', zIndex: 3 }}>
+                  <div className="launch-title" style={{ textShadow: `0 0 20px ${launch.glow}, 0 0 70px ${launch.glow}` }}>{launch.label}</div>
+                  <div className="launch-subtitle">Portal waking up...</div>
+                </div>
+              )}
+            </div>
+          )}
+          <button onClick={launch.videoOver ? () => setLaunch(null) : handleVideoEnd} className="portal-close-button">{launch.videoOver ? 'Close' : 'Skip'}</button>
         </div>
       )}
 
-      {/* Center OCCU-MED logo */}
-      <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
-        <div className={`center-logo ${logoState === 'hidden' ? 'logo-hidden' : logoState === 'glow' ? 'logo-glow' : logoState === 'flare' ? 'logo-flare' : 'logo-persist'}`}>
-          OCCU&#8209;MED
-        </div>
-      </div>
+      {showAdmin && (
+        <div className="admin-overlay">
+          <div className="admin-panel admin-panel-wide">
+            {!adminUnlocked ? (
+              <div className="admin-login-card">
+                <p className="admin-kicker">Occu-Med Secure Portal</p>
+                <h2>Admin Access Required</h2>
+                <p className="admin-login-help">Sign in to configure the full portal command center.</p>
+                <label>Email</label>
+                <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} placeholder="name@occu-med.com" />
+                <label>Password</label>
+                <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()} placeholder="Password" />
+                {adminError && <div className="admin-error">{adminError}</div>}
+                <div className="admin-actions">
+                  <button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button>
+                  <button className="admin-btn-save" onClick={handleAdminLogin}>Unlock Admin</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="admin-panel-header">
+                  <h2>Admin Command Center</h2>
+                  <p>One locked panel for planet links, users, permissions, and launch settings.</p>
+                  {saveMessage && <div className="admin-save-message">{saveMessage}</div>}
+                </div>
+                <div className="admin-tabs">
+                  <button className={adminTab === 'planets' ? 'active' : ''} onClick={() => setAdminTab('planets')}>Planet Portals</button>
+                  <button className={adminTab === 'users' ? 'active' : ''} onClick={() => setAdminTab('users')}>Users & Permissions</button>
+                  <button className={adminTab === 'launch' ? 'active' : ''} onClick={() => setAdminTab('launch')}>Launch Experience</button>
+                </div>
 
-      {/* Top bar */}
-      <div className="absolute left-0 top-0 z-50 flex w-full items-center justify-between p-5 md:p-7">
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
-          className="flex items-center gap-4"
-        >
-          <div className="text-sm font-bold uppercase tracking-[0.34em] text-white/45 md:text-base">
-            OCCU-MED
+                {adminTab === 'planets' && (
+                  <div className="admin-grid admin-grid-wide">
+                    {PORTALS.map((p) => (
+                      <div key={p.id} className="admin-card">
+                        <strong style={{ color: p.glow }}>{p.label}</strong>
+                        <label>Render URL</label>
+                        <input type="url" placeholder="https://your-app.onrender.com" value={draft[p.id].url} onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], url: e.target.value } }))} />
+                        <label>Transition Video URL</label>
+                        <input type="url" placeholder="https://...video.mp4" value={draft[p.id].videoUrl} onChange={(e) => setDraft((prev) => ({ ...prev, [p.id]: { ...prev[p.id], videoUrl: e.target.value } }))} />
+                        <label>Or upload video file</label>
+                        <input type="file" accept="video/*" onChange={(e) => void handleVideoUpload(p.id, e.target.files?.[0] ?? null)} disabled={isUploadingAsset} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {adminTab === 'users' && (
+                  <div className="admin-users">
+                    <div className="admin-invite">
+                      <input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addUser()} placeholder="name@occu-med.com" />
+                      <button className="admin-btn-save" onClick={addUser}>Add User</button>
+                    </div>
+                    {users.map((u) => (
+                      <div className="admin-user-row" key={u.email}>
+                        <div>
+                          <strong>{u.email}</strong>
+                          <button onClick={() => toggleRole(u.email)}>{u.role}</button>
+                        </div>
+                        <div className="admin-permission-grid">
+                          {PORTALS.map((p) => (
+                            <button key={p.id} className={u.permissions.includes(p.permissionKey) ? 'enabled' : ''} onClick={() => togglePermission(u.email, p.permissionKey)} style={{ '--portal-color': p.glow } as React.CSSProperties}>
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {adminTab === 'launch' && (
+                  <div className="admin-launch">
+                    <label>Opening Video URL</label>
+                    <input value={openingVideoUrl} onChange={(e) => setOpeningVideoUrl(e.target.value)} placeholder="https://...opening.mp4" />
+                    <label>Or upload opening video</label>
+                    <input type="file" accept="video/*" onChange={(e) => void handleOpeningVideoUpload(e.target.files?.[0] ?? null)} disabled={isUploadingAsset} />
+                    <label>Startup Audio URL</label>
+                    <input value={audioUrl} onChange={(e) => setAudioUrl(e.target.value)} placeholder="https://...ambient.mp3" />
+                  </div>
+                )}
+
+                <div className="admin-actions">
+                  <button className="admin-btn-cancel" onClick={() => setShowAdmin(false)}>Cancel</button>
+                  <button className="admin-btn-save" onClick={handleSave} disabled={isSaving || isUploadingAsset}>
+                    {isSaving ? 'Saving...' : isUploadingAsset ? 'Uploading...' : 'Save Changes'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-          {!isLive && (
-            <div className="rounded-full border border-white/20 bg-black/25 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70 backdrop-blur-md">
-              Setup Mode
-            </div>
-          )}
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.15 }}
-        >
-          <Link
-            href={isLive && !isAdmin ? '/login' : '/admin'}
-            className="rounded-full border border-white/15 bg-black/25 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/75 backdrop-blur-md transition hover:border-white/35 hover:text-white"
-          >
-            Admin
-          </Link>
-        </motion.div>
-      </div>
-
-      {/* Portal planets */}
-      {PORTALS.map((portal, idx) => {
-        const hasAccess = permissions.includes(portal.permissionKey);
-        const bloomDuration = 3.8 + (idx % 5) * 0.7;
-        const bloomDelay    = (idx * 0.65) % 3.5;
-
-        return (
-          <motion.button
-            key={portal.id}
-            aria-label={`${portal.label} portal`}
-            className={`group absolute z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none ${hasAccess ? 'cursor-pointer' : 'cursor-default'}`}
-            style={{
-              left:   `${portal.x}%`,
-              top:    `${portal.y}%`,
-              width:  `${portal.size}vmin`,
-              height: `${portal.size}vmin`,
-            }}
-            onClick={() => handlePortalClick(portal)}
-            whileHover={hasAccess ? { scale: 1.08 } : { scale: 1.01 }}
-            whileTap={hasAccess ? { scale: 0.97 } : undefined}
-          >
-            {/* Ambient bloom — always pulsing */}
-            <span
-              className="ambient-bloom absolute rounded-full"
-              style={{
-                inset: '-40%',
-                background: `radial-gradient(circle, ${portal.color}2a 0%, ${portal.color}0c 55%, transparent 80%)`,
-                '--bloom-duration': `${bloomDuration}s`,
-                '--bloom-delay':    `${bloomDelay}s`,
-              } as React.CSSProperties}
-            />
-
-            {/* Static base glow ring */}
-            <span
-              className="absolute inset-0 rounded-full opacity-40 blur-lg transition-opacity duration-500 group-hover:opacity-80"
-              style={{ boxShadow: `0 0 32px 10px ${portal.color}` }}
-            />
-
-            {/* Hover bloom burst */}
-            <span
-              className="absolute rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-              style={{
-                inset: '-18%',
-                boxShadow: `0 0 55px 14px ${portal.color}90, inset 0 0 28px ${portal.color}55`,
-              }}
-            />
-
-            {/* Label — invisible by default, floats up on hover */}
-            <span
-              className="portal-label pointer-events-none absolute left-1/2 -translate-x-1/2 translate-y-1.5 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100"
-              style={{
-                bottom: '-2.4em',
-                color: portal.color,
-                textShadow: `0 0 8px ${portal.color}, 0 0 18px ${portal.color}80, 0 0 36px ${portal.color}40`,
-              }}
-            >
-              {portal.label}
-            </span>
-          </motion.button>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 }

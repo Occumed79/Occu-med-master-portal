@@ -10,38 +10,29 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
-
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
   --color-card-border: hsl(var(--card-border));
-
   --color-popover: hsl(var(--popover));
   --color-popover-foreground: hsl(var(--popover-foreground));
   --color-popover-border: hsl(var(--popover-border));
-
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
   --color-primary-border: var(--primary-border);
-
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
   --color-secondary-border: var(--secondary-border);
-
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
   --color-muted-border: var(--muted-border);
-
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
   --color-accent-border: var(--accent-border);
-
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
   --color-destructive-border: var(--destructive-border);
-
   --font-sans: var(--app-font-sans);
   --font-mono: var(--app-font-mono);
-
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -71,15 +62,12 @@
   --input: 230 40% 15%;
   --ring: 210 100% 60%;
   --radius: 0.5rem;
-
   --app-font-sans: 'Inter', system-ui, sans-serif;
   --app-font-mono: 'JetBrains Mono', monospace;
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
   body {
     @apply font-sans bg-background text-foreground antialiased;
     -webkit-font-smoothing: antialiased;
@@ -88,192 +76,184 @@
   }
 }
 
-.portal-bg {
-  background-color: #05050a;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+.portal-artwork-scene {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: #050a2f;
+  isolation: isolate;
 }
 
-.glow-text {
-  text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
-}
-
-/* ── Stars ─────────────────────────────────────────────── */
-
-@keyframes twinkle {
-  0%, 100% { opacity: 0.12; transform: scale(0.85); }
-  50%       { opacity: 0.75; transform: scale(1.05); }
-}
-
-@keyframes sparkle {
-  0%, 100% {
-    opacity: 0.15;
-    transform: scale(0.7);
-    box-shadow: 0 0 2px rgba(255,255,255,0.2);
-  }
-  45%, 55% {
-    opacity: 1;
-    transform: scale(1.7);
-    box-shadow:
-      0 0 6px 2px rgba(255,255,255,0.95),
-      0 0 14px 4px rgba(200,225,255,0.6),
-      0 -9px 0 0 rgba(220,235,255,0.45),
-      0  9px 0 0 rgba(220,235,255,0.45),
-      -9px 0 0 0 rgba(220,235,255,0.45),
-       9px 0 0 0 rgba(220,235,255,0.45),
-      0 -6px 0 0 rgba(255,255,255,0.25),
-      0  6px 0 0 rgba(255,255,255,0.25),
-      -6px 0 0 0 rgba(255,255,255,0.25),
-       6px 0 0 0 rgba(255,255,255,0.25);
-  }
-}
-
-.star {
+.portal-artwork {
   position: absolute;
-  background: white;
-  border-radius: 50%;
-  animation: twinkle var(--duration, 3s) infinite ease-in-out;
-  animation-delay: var(--delay, 0s);
-  will-change: opacity, transform;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  z-index: 1;
 }
 
-.star-bright {
-  animation-name: sparkle !important;
-}
-
-/* ── Ambient planet bloom ──────────────────────────────── */
-
-@keyframes ambientBloom {
-  0%, 100% { opacity: 0.22; transform: scale(1); }
-  50%       { opacity: 0.52; transform: scale(1.18); }
-}
-
-.ambient-bloom {
-  animation: ambientBloom var(--bloom-duration, 4.5s) infinite ease-in-out;
-  animation-delay: var(--bloom-delay, 0s);
-  will-change: opacity, transform;
-}
-
-/* ── Comet intro ───────────────────────────────────────── */
-
-@keyframes cometFly {
-  0%   { transform: translate(-320px, 0); opacity: 0; }
-  6%   { opacity: 1; }
-  94%  { opacity: 1; }
-  100% { transform: translate(calc(100vw + 320px), 30vh); opacity: 0; }
-}
-
-.comet-head {
+.planet-hotspot {
   position: absolute;
-  /* starts at 35% from top; midpoint of journey lands at exactly 50% */
-  top: calc(50% - 15vh);
-  left: 0;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #ffffff 0%, #c8e8ff 55%, transparent 100%);
-  box-shadow:
-    0 0 8px 3px rgba(210,235,255,0.95),
-    0 0 22px 8px rgba(180,215,255,0.6),
-    0 0 50px 18px rgba(150,195,255,0.3);
-  animation: cometFly 2.4s cubic-bezier(0.28, 0, 0.72, 1) forwards;
-  will-change: transform, opacity;
+  transform: translate(-50%, -50%);
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  z-index: 4;
 }
 
-.comet-head::after {
-  content: '';
+.portal-launch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-launch-loading {
   position: absolute;
-  top: 50%;
-  right: 100%;
-  width: 300px;
-  height: 3px;
-  transform-origin: right center;
-  transform: translateY(-50%) rotate(-8deg);
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    rgba(170,205,255,0.12) 35%,
-    rgba(210,230,255,0.55) 75%,
-    rgba(255,255,255,0.9) 100%
-  );
-  border-radius: 3px;
-  filter: blur(1.2px);
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
 }
 
-/* comet sparkle burst at the head */
-.comet-head::before {
-  content: '';
+.portal-launch-video {
   position: absolute;
-  inset: -6px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(200,225,255,0.4) 40%, transparent 70%);
-  filter: blur(3px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 3;
 }
 
-/* ── Center OCCU-MED logo ──────────────────────────────── */
+.launch-title {
+  font-size: clamp(2rem, 6vw, 5rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+  animation: pulse 2s ease-in-out infinite;
+}
 
-.center-logo {
-  font-size: clamp(1.8rem, 4.5vw, 4rem);
+.launch-subtitle {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.portal-close-button {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  padding: 0.45rem 1.1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  backdrop-filter: blur(8px);
+  letter-spacing: 0.1em;
+}
+
+.admin-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 4, 17, 0.76);
+  display: grid;
+  place-items: center;
+  z-index: 80;
+  padding: 24px;
+}
+
+.admin-panel {
+  width: min(95vw, 1120px);
+  max-height: 88vh;
+  overflow: auto;
+  background: linear-gradient(145deg, rgba(8,14,48,0.96), rgba(5,10,31,0.96));
+  border: 1px solid rgba(111,133,255,0.55);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 24px 90px rgba(0,0,0,0.48), inset 0 0 34px rgba(88,121,255,0.08);
+}
+
+.admin-panel-wide { width: min(96vw, 1200px); }
+.admin-panel-header { margin-bottom: 12px; }
+.admin-panel-header h2 { margin: 0 0 4px; font-size: 1.25rem; font-weight: 800; }
+.admin-panel-header p { margin: 0; color: rgba(255,255,255,0.72); }
+.admin-save-message { margin-top: 8px; color: #9ef7ff; font-size: 0.9rem; }
+
+.admin-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0 16px;
+  padding: 6px;
+  border: 1px solid rgba(111,133,255,0.25);
+  border-radius: 999px;
+  background: rgba(0,0,0,0.16);
+}
+
+.admin-tabs button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.55rem 0.95rem;
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.78);
+  cursor: pointer;
   font-weight: 800;
-  letter-spacing: 0.55em;
-  text-transform: uppercase;
-  color: #ffffff;
-  font-family: 'Inter', system-ui, sans-serif;
-  will-change: text-shadow, opacity;
-  -webkit-font-smoothing: antialiased;
-  user-select: none;
+  letter-spacing: 0.02em;
 }
 
-.logo-hidden {
-  opacity: 0;
-  text-shadow: none;
-  transition: text-shadow 0.5s ease, opacity 0.5s ease;
+.admin-tabs button.active {
+  background: #ffffff;
+  color: #020617;
+  box-shadow: 0 0 22px rgba(158,247,255,0.22);
 }
 
-.logo-glow {
-  opacity: 0.65;
-  text-shadow:
-    0 0 6px rgba(190,215,255,0.7),
-    0 0 14px rgba(160,200,255,0.5),
-    0 0 28px rgba(130,180,255,0.3);
-  transition: text-shadow 0.35s ease, opacity 0.35s ease;
+.admin-login-card { display: grid; gap: 10px; max-width: 440px; margin: 0 auto; }
+.admin-kicker { margin: 0; color: #9ef7ff; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; }
+.admin-login-card h2 { margin: 0; font-size: 1.7rem; }
+.admin-login-help { color: rgba(255,255,255,0.62); font-size: 0.9rem; }
+.admin-error { color: #fecaca; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); border-radius: 10px; padding: 8px 10px; font-size: 0.85rem; }
+
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 12px; }
+.admin-grid-wide { grid-template-columns: repeat(5, minmax(160px, 1fr)); }
+.admin-card { display: grid; gap: 8px; background: rgba(15,23,64,0.84); border: 1px solid rgba(93,114,217,0.72); border-radius: 12px; padding: 10px; }
+.admin-card input, .admin-login-card input, .admin-invite input, .admin-launch input { width: 100%; background: #02071f; border: 1px solid #32417c; border-radius: 8px; padding: 8px; color: #fff; }
+.admin-card label, .admin-login-card label, .admin-launch label { color: rgba(255,255,255,0.86); }
+.admin-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.admin-btn-cancel, .admin-btn-save { border: 1px solid rgba(255,255,255,0.18); border-radius: 999px; padding: 0.55rem 1rem; cursor: pointer; }
+.admin-btn-cancel { background: rgba(255,255,255,0.06); color: #fff; }
+.admin-btn-save { background: #fff; color: #020617; font-weight: 800; }
+
+.admin-users, .admin-launch { display: grid; gap: 12px; }
+.admin-invite { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.admin-user-row { display: grid; gap: 10px; padding: 12px; border: 1px solid rgba(93,114,217,0.55); border-radius: 14px; background: rgba(15,23,64,0.72); }
+.admin-user-row > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-user-row button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: #fff; padding: 0.38rem 0.72rem; cursor: pointer; }
+.admin-permission-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-permission-grid button.enabled { background: color-mix(in srgb, var(--portal-color) 34%, rgba(255,255,255,0.08)); border-color: color-mix(in srgb, var(--portal-color) 78%, transparent); box-shadow: 0 0 16px color-mix(in srgb, var(--portal-color) 28%, transparent); }
+.admin-launch { max-width: 720px; }
+
+@media (max-width: 980px) {
+  .admin-grid-wide { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
 }
 
-.logo-flare {
-  opacity: 1;
-  text-shadow:
-    0 0 8px  #fff,
-    0 0 18px #fff,
-    0 0 36px rgba(160,200,255,1),
-    0 0 70px rgba(120,170,255,0.9),
-    0 0 120px rgba(90,150,255,0.7),
-    0 0 200px rgba(60,120,255,0.45);
-  transition: text-shadow 0.22s ease, opacity 0.22s ease;
-}
-
-.logo-persist {
-  opacity: 1;
-  text-shadow:
-    0 0 5px  rgba(210,230,255,0.8),
-    0 0 12px rgba(180,210,255,0.55),
-    0 0 26px rgba(150,190,255,0.35),
-    0 0 50px rgba(120,170,255,0.18);
-  transition: text-shadow 1s ease, opacity 1s ease;
-}
-
-/* ── Portal hover labels ───────────────────────────────── */
-
-.portal-label {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-family: 'JetBrains Mono', monospace;
-  white-space: nowrap;
-  transition: opacity 0.45s ease, transform 0.45s ease, letter-spacing 0.45s ease;
-}
-
-.group:hover .portal-label {
-  letter-spacing: 0.32em;
+@media (max-width: 620px) {
+  .admin-grid-wide { grid-template-columns: 1fr; }
+  .admin-invite { grid-template-columns: 1fr; }
 }
