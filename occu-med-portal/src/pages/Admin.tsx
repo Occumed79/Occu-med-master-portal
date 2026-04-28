@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { Button } from '../components/ui/button';
 import { PORTALS, STORAGE_KEY, OPENING_VIDEO_KEY, type PortalPermissionKey } from '../lib/config';
 import { supabase } from '../lib/supabase';
+import { uploadPortalAsset } from '../lib/portalBackend';
 import { useAuth } from '../hooks/useAuth';
 
 type ManagedUser = {
@@ -33,6 +34,7 @@ export default function Admin() {
     typeof window !== 'undefined' ? localStorage.getItem(OPENING_VIDEO_KEY) ?? '' : ''
   );
   const [saving, setSaving]         = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage]       = useState('');
   const [activeTab, setActiveTab]   = useState<'users' | 'portals' | 'launch'>('users');
 
@@ -154,31 +156,17 @@ export default function Admin() {
   const handleOpeningVideoUpload = async (file: File | null) => {
     if (!file) return;
     setMessage('');
-    // If Supabase is available, upload to Storage
-    if (supabase) {
-      try {
-        const ext = file.name.split('.').pop() ?? 'mp4';
-        const fileName = `opening-video-${Date.now()}.${ext}`;
-        const { data, error } = await supabase.storage
-          .from('portal-videos')
-          .upload(fileName, file, { upsert: true, contentType: file.type });
-        if (error) throw error;
-        const { data: publicData } = supabase.storage
-          .from('portal-videos')
-          .getPublicUrl(data.path);
-        setOpeningVideoUrl(publicData.publicUrl);
-        setMessage('✅ Video uploaded to Supabase Storage.');
-        return;
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        setMessage(`Opening video upload failed: ${msg}. Make sure a "portal-videos" bucket exists in Supabase Storage with public access enabled.`);
-        return;
-      }
+    setIsUploading(true);
+    try {
+      const publicUrl = await uploadPortalAsset(file, 'opening');
+      setOpeningVideoUrl(publicUrl);
+      setMessage('✅ Opening video uploaded successfully.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setMessage(`Opening video upload failed: ${msg}. Make sure the "portal-assets" bucket exists in Supabase Storage with public access enabled.`);
+    } finally {
+      setIsUploading(false);
     }
-    // Fallback: store as data URL locally (preview mode)
-    const reader = new FileReader();
-    reader.onload = () => setOpeningVideoUrl(String(reader.result || ''));
-    reader.readAsDataURL(file);
   };
 
   // Planet settings from localStorage
@@ -391,8 +379,8 @@ export default function Admin() {
                 </div>
 
                 <div className="mt-4 flex justify-end">
-                  <Button onClick={saveChanges} disabled={saving || !canManage} className="bg-white text-black hover:bg-cyan-100">
-                    {saving ? 'Saving...' : 'Save Changes'}
+                  <Button onClick={saveChanges} disabled={saving || isUploading || !canManage} className="bg-white text-black hover:bg-cyan-100">
+                    {saving ? 'Saving...' : isUploading ? 'Uploading...' : 'Save Changes'}
                   </Button>
                 </div>
               </CardContent>
@@ -446,7 +434,10 @@ export default function Admin() {
                           <span className="text-white/30 w-20 flex-shrink-0">Video:</span>
                           <span className="truncate text-white/70">
                             {saved?.videoUrl
-                              ? (saved.videoUrl.startsWith('data:') ? '✅ File uploaded' : saved.videoUrl)
+                              ? (saved.videoUrl.startsWith('data:')
+                                  ? <span className="text-amber-400/70 italic">⚠️ Stored as data URL — re-upload to fix</span>
+                                  : <a href={saved.videoUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400/80 hover:text-cyan-300 underline truncate">{saved.videoUrl}</a>
+                                )
                               : <span className="italic">None (goes direct to portal)</span>
                             }
                           </span>
@@ -480,6 +471,7 @@ export default function Admin() {
                   <label className="block text-xs text-white/40 mb-2">Video URL (YouTube, CDN, etc.)</label>
                   <input
                     value={openingVideoUrl.startsWith('data:') ? '' : openingVideoUrl}
+                    placeholder="https://...opening.mp4"
                     onChange={(e) => setOpeningVideoUrl(e.target.value)}
                     placeholder="https://.../opening-theme.mp4"
                     className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-cyan-200/50"
@@ -490,14 +482,15 @@ export default function Admin() {
                   <input
                     type="file"
                     accept="video/*"
-                    onChange={(e) => handleOpeningVideoUpload(e.target.files?.[0] ?? null)}
+                    onChange={(e) => void handleOpeningVideoUpload(e.target.files?.[0] ?? null)}
+                    disabled={isUploading}
                     className="text-xs text-white/60"
                   />
                 </div>
                 {openingVideoUrl && (
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-green-400/80">
-                      ✅ {openingVideoUrl.startsWith('data:') ? 'Video file uploaded' : 'Video URL set'}
+                      {isUploading ? '⏳ Uploading...' : openingVideoUrl.startsWith('data:') ? '⚠️ Data URL — re-upload to use Supabase Storage' : '✅ Video ready'}
                     </span>
                     <button
                       onClick={() => setOpeningVideoUrl('')}
