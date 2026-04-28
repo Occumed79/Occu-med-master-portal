@@ -232,6 +232,7 @@
 .admin-panel-header { margin-bottom: 12px; }
 .admin-panel-header h2 { margin: 0 0 4px; font-size: 1.25rem; font-weight: 800; }
 .admin-panel-header p { margin: 0; color: rgba(255,255,255,0.72); }
+.admin-save-message { margin-top: 8px; color: #9ef7ff; font-size: 0.9rem; }
 
 .admin-tabs {
   display: flex;
