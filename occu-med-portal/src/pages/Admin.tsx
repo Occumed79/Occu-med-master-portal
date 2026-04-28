@@ -397,73 +397,38 @@ export default function Admin() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex flex-col gap-3 md:flex-row">
-                <input
-                  value={inviteEmail}
-                  onChange={(event) => setInviteEmail(event.target.value)}
-                  placeholder="name@occu-med.com"
-                  className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-cyan-200/50"
-                />
-                <Button onClick={inviteUser} disabled={!canManage} className="bg-white text-black hover:bg-cyan-100">Invite by Email</Button>
-              </div>
-
               <div className="overflow-hidden rounded-2xl border border-white/10">
                 <div
-                  className="grid bg-white/10 px-3 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/55"
-                  style={{ gridTemplateColumns: permissionsGridTemplate }}
+                  className="grid bg-white/10 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/55"
+                  style={{ gridTemplateColumns: 'minmax(140px,0.9fr) minmax(180px,1.1fr) minmax(220px,1.5fr)' }}
                 >
-                  <span>User</span>
-                  <span>Role</span>
-                  {PORTALS.map((portal) => <span key={portal.id} className="text-center">{portal.label}</span>)}
+                  <span>Planet</span>
+                  <span>Render URL</span>
+                  <span>Transition Video</span>
                 </div>
-                {users.map((managedUser) => (
+                {PORTALS.map((portal) => {
+                  const saved = planetSettings?.[portal.id];
+                  return (
                   <div
-                    key={managedUser.email}
-                    className="grid items-center border-t border-white/10 px-3 py-3 text-sm"
-                    style={{ gridTemplateColumns: permissionsGridTemplate }}
+                    key={portal.id}
+                    className="grid items-center gap-3 border-t border-white/10 px-4 py-3 text-sm"
+                    style={{ gridTemplateColumns: 'minmax(140px,0.9fr) minmax(180px,1.1fr) minmax(220px,1.5fr)' }}
                   >
-                    <span className="truncate text-white/85">{managedUser.email}</span>
-                    <button
-                      onClick={() => toggleRole(managedUser.email)}
-                      className="mr-3 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/75 transition hover:bg-white/10"
-                      disabled={!canManage}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <span
-                          style={{
-                            width: '10px', height: '10px', borderRadius: '50%',
-                            background: portal.glow,
-                            boxShadow: `0 0 8px ${portal.glow}`,
-                            flexShrink: 0,
-                          }}
-                        />
-                        <span className="font-bold text-sm" style={{ color: portal.glow }}>
-                          {portal.label}
-                        </span>
-                      </div>
-                      <div className="grid gap-1 text-xs text-white/50">
-                        <div className="flex gap-2">
-                          <span className="text-white/30 w-20 flex-shrink-0">Render URL:</span>
-                          <span className="truncate text-white/70">
-                            {saved?.url || <span className="text-red-400/60 italic">Not configured</span>}
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <span className="text-white/30 w-20 flex-shrink-0">Video:</span>
-                          <span className="truncate text-white/70">
-                            {saved?.videoUrl
-                              ? (saved.videoUrl.startsWith('data:')
-                                  ? <span className="text-amber-400/70 italic">⚠️ Stored as data URL — re-upload to fix</span>
-                                  : <a href={saved.videoUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400/80 hover:text-cyan-300 underline truncate">{saved.videoUrl}</a>
-                                )
-                              : <span className="italic">None (goes direct to portal)</span>
-                            }
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                    <span className="font-semibold" style={{ color: portal.glow }}>{portal.label}</span>
+                    <span className="truncate text-white/70">
+                      {saved?.url || <span className="text-red-400/60 italic">Not configured</span>}
+                    </span>
+                    <span className="truncate text-white/70">
+                      {saved?.videoUrl
+                        ? (saved.videoUrl.startsWith('data:')
+                            ? <span className="text-amber-400/70 italic">⚠️ Stored as data URL — re-upload to fix</span>
+                            : <a href={saved.videoUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400/80 hover:text-cyan-300 underline">{saved.videoUrl}</a>
+                          )
+                        : <span className="italic">None (goes direct to portal)</span>
+                      }
+                    </span>
+                  </div>
+                )})}
               </div>
               <p className="mt-4 text-xs text-white/30">
                 💡 To configure URLs and videos, click the <strong>Pluto (Admin)</strong> planet on the map.
@@ -489,7 +454,6 @@ export default function Admin() {
                   <label className="block text-xs text-white/40 mb-2">Video URL (YouTube, CDN, etc.)</label>
                   <input
                     value={openingVideoUrl.startsWith('data:') ? '' : openingVideoUrl}
-                    placeholder="https://...opening.mp4"
                     onChange={(e) => setOpeningVideoUrl(e.target.value)}
                     placeholder="https://.../opening-theme.mp4"
                     className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-cyan-200/50"
@@ -548,4 +512,3 @@ export default function Admin() {
     </div>
   );
 }
-

@@ -94,7 +94,8 @@ export default function PortalMap() {
     }
     const conf = settings[planet.id];
     if (!conf?.url) return;
-    setLaunch({ iframeUrl: conf.url, videoUrl: conf.videoUrl || null, label: planet.label, glow: planet.glow, videoOver: !conf.videoUrl });
+    const transitionVideo = conf.videoUrl || openingVideoUrl || null;
+    setLaunch({ iframeUrl: conf.url, videoUrl: transitionVideo, label: planet.label, glow: planet.glow, videoOver: !transitionVideo });
   };
 
   const handleVideoEnd = () => {
@@ -207,21 +208,6 @@ export default function PortalMap() {
     setUsers((cur) => (cur.some((u) => u.email === email) ? cur : [...cur, { email, role: 'User', permissions: [] }]));
     setInviteEmail('');
   };
-
-  const togglePermission = (email: string, permission: PortalPermissionKey) =>
-    setUsers((cur) =>
-      cur.map((u) =>
-        u.email !== email
-          ? u
-          : {
-              ...u,
-              permissions: u.permissions.includes(permission) ? u.permissions.filter((p) => p !== permission) : [...u.permissions, permission],
-            },
-      ),
-    );
-
-  const toggleRole = (email: string) =>
-    setUsers((cur) => cur.map((u) => (u.email === email ? { ...u, role: u.role === 'Admin' ? 'User' : 'Admin' } : u)));
 
   return (
     <div className="portal-artwork-scene">
