@@ -23,6 +23,7 @@ export type PortalBackendState = {
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const storageBucket = (import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string | undefined) ?? 'portal-assets';
 
 const supabase =
   supabaseUrl && supabaseAnonKey
@@ -63,4 +64,44 @@ export async function savePortalState(state: PortalBackendState): Promise<void> 
     console.error('Supabase save failed:', error);
     throw error;
   }
+}
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+export async function uploadPortalAsset(
+  file: File,
+  pathPrefix: 'transitions' | 'opening' | 'audio',
+): Promise<string> {
+  if (!supabase) {
+    throw new Error('Supabase environment variables are missing.');
+  }
+
+  const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
+  const safeBaseName = sanitizeFileName(file.name.replace(/\.[^.]+$/, ''));
+  const filePath = `${pathPrefix}/${Date.now()}-${safeBaseName}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(storageBucket)
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || undefined,
+    });
+
+  if (uploadError) {
+    console.error('Supabase upload failed:', uploadError);
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage
+    .from(storageBucket)
+    .getPublicUrl(filePath);
+
+  if (!data.publicUrl) {
+    throw new Error('Failed to generate public URL for uploaded asset.');
+  }
+
+  return data.publicUrl;
 }
