@@ -18,10 +18,15 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [canStart, setCanStart] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [activeVideoUrl, setActiveVideoUrl] = useState(FALLBACK_VIDEO_URL);
   const videoUrl = useMemo(() => {
     if (typeof window === 'undefined') return FALLBACK_VIDEO_URL;
     return localStorage.getItem(OPENING_VIDEO_KEY) || FALLBACK_VIDEO_URL;
   }, []);
+
+  useEffect(() => {
+    setActiveVideoUrl(videoUrl);
+  }, [videoUrl]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -34,13 +39,7 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
         await video.play();
         setCanStart(true);
       } catch {
-        try {
-          video.muted = true;
-          await video.play();
-          setCanStart(true);
-        } catch {
-          setCanStart(false);
-        }
+        setCanStart(false);
       }
     };
 
@@ -53,7 +52,7 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
     <div className="opening-video-overlay">
       <video
         ref={videoRef}
-        src={videoUrl}
+        src={activeVideoUrl}
         autoPlay
         playsInline
         preload="auto"
@@ -61,7 +60,10 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
         onCanPlay={() => setCanStart(true)}
         onEnded={onDone}
         onError={() => {
-          // If even the fallback fails, just proceed
+          if (activeVideoUrl !== FALLBACK_VIDEO_URL) {
+            setActiveVideoUrl(FALLBACK_VIDEO_URL);
+            return;
+          }
           setFailed(true);
           onDone();
         }}
@@ -69,19 +71,20 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
       {!canStart && (
         <button
           className="opening-start-button"
-          onClick={() =>
-            videoRef.current
-              ?.play()
+          onClick={() => {
+            const video = videoRef.current;
+            if (!video) return;
+            video.muted = false;
+            video.volume = 1;
+            video
+              .play()
               .then(() => setCanStart(true))
-              .catch(onDone)
-          }
+              .catch(onDone);
+          }}
         >
           Enter Portal
         </button>
       )}
-      <button onClick={onDone} className="opening-skip-button">
-        Skip ›
-      </button>
     </div>
   );
 }
