@@ -18,10 +18,15 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [canStart, setCanStart] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [activeVideoUrl, setActiveVideoUrl] = useState(FALLBACK_VIDEO_URL);
   const videoUrl = useMemo(() => {
     if (typeof window === 'undefined') return FALLBACK_VIDEO_URL;
     return localStorage.getItem(OPENING_VIDEO_KEY) || FALLBACK_VIDEO_URL;
   }, []);
+
+  useEffect(() => {
+    setActiveVideoUrl(videoUrl);
+  }, [videoUrl]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -39,7 +44,7 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
     };
 
     void tryStart();
-  }, [videoUrl]);
+  }, [activeVideoUrl]);
 
   if (failed) return null;
 
@@ -47,7 +52,7 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
     <div className="opening-video-overlay">
       <video
         ref={videoRef}
-        src={videoUrl}
+        src={activeVideoUrl}
         autoPlay
         playsInline
         preload="auto"
@@ -55,6 +60,10 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
         onCanPlay={() => setCanStart(true)}
         onEnded={onDone}
         onError={() => {
+          if (activeVideoUrl !== FALLBACK_VIDEO_URL) {
+            setActiveVideoUrl(FALLBACK_VIDEO_URL);
+            return;
+          }
           setFailed(true);
           onDone();
         }}
