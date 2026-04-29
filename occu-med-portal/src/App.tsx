@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -11,40 +11,41 @@ import { OPENING_VIDEO_KEY } from "@/lib/config";
 
 const queryClient = new QueryClient();
 
-// Fallback to the background video already bundled in public/assets
+// The background solar system video — used as opening intro if no custom video is set
 const FALLBACK_VIDEO_URL = '/assets/portal-solar-system-bg.mp4';
+
+// How long (ms) to show the fallback video before auto-proceeding to portal
+// The bg video loops, so we can't rely on onEnded — we use a timer instead
+const FALLBACK_INTRO_DURATION = 5000;
 
 function OpeningVideo({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [canStart, setCanStart] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [activeVideoUrl, setActiveVideoUrl] = useState(FALLBACK_VIDEO_URL);
-  const videoUrl = useMemo(() => {
-    if (typeof window === 'undefined') return FALLBACK_VIDEO_URL;
-    return localStorage.getItem(OPENING_VIDEO_KEY) || FALLBACK_VIDEO_URL;
-  }, []);
 
-  useEffect(() => {
-    setActiveVideoUrl(videoUrl);
-  }, [videoUrl]);
+  const customVideoUrl =
+    typeof window !== 'undefined'
+      ? localStorage.getItem(OPENING_VIDEO_KEY) || null
+      : null;
+
+  const videoUrl = customVideoUrl || FALLBACK_VIDEO_URL;
+  const isCustom = !!customVideoUrl;
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
-    const tryStart = async () => {
-      try {
-        video.muted = false;
-        video.volume = 1;
-        await video.play();
-        setCanStart(true);
-      } catch {
-        setCanStart(false);
-      }
-    };
-
-    void tryStart();
+    video.muted = true;
+    video.play().then(() => setCanStart(true)).catch(() => setCanStart(false));
   }, [videoUrl]);
+
+  // If using the fallback looping bg video, auto-advance after FALLBACK_INTRO_DURATION
+  useEffect(() => {
+    if (isCustom) return; // custom video uses onEnded
+    const timer = setTimeout(() => {
+      onDone();
+    }, FALLBACK_INTRO_DURATION);
+    return () => clearTimeout(timer);
+  }, [isCustom, onDone]);
 
   if (failed) return null;
 
@@ -52,18 +53,15 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
     <div className="opening-video-overlay">
       <video
         ref={videoRef}
-        src={activeVideoUrl}
+        src={videoUrl}
         autoPlay
+        muted
         playsInline
         preload="auto"
         className="opening-video"
         onCanPlay={() => setCanStart(true)}
-        onEnded={onDone}
+        onEnded={isCustom ? onDone : undefined}
         onError={() => {
-          if (activeVideoUrl !== FALLBACK_VIDEO_URL) {
-            setActiveVideoUrl(FALLBACK_VIDEO_URL);
-            return;
-          }
           setFailed(true);
           onDone();
         }}
@@ -71,20 +69,19 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
       {!canStart && (
         <button
           className="opening-start-button"
-          onClick={() => {
-            const video = videoRef.current;
-            if (!video) return;
-            video.muted = false;
-            video.volume = 1;
-            video
-              .play()
+          onClick={() =>
+            videoRef.current
+              ?.play()
               .then(() => setCanStart(true))
-              .catch(onDone);
-          }}
+              .catch(onDone)
+          }
         >
           Enter Portal
         </button>
       )}
+      <button onClick={onDone} className="opening-skip-button">
+        Skip ›
+      </button>
     </div>
   );
 }
