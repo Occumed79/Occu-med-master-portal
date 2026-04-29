@@ -265,3 +265,40 @@
   .admin-grid-wide { grid-template-columns: 1fr; }
   .admin-invite { grid-template-columns: 1fr; }
 }
+
+.opening-video-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.opening-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  background: #000;
+}
+
+.opening-skip-button,
+.opening-start-button {
+  position: absolute;
+  left: 1rem;
+  z-index: 10000;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.opening-skip-button { bottom: 1rem; }
+.opening-start-button { bottom: 3.25rem; }

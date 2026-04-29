@@ -26,13 +26,19 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    video.muted = true;
-    const attempt = video.play();
-    if (attempt) {
-      attempt
-        .then(() => setCanStart(true))
-        .catch(() => setCanStart(false));
-    }
+
+    const tryStart = async () => {
+      try {
+        video.muted = false;
+        video.volume = 1;
+        await video.play();
+        setCanStart(true);
+      } catch {
+        setCanStart(false);
+      }
+    };
+
+    void tryStart();
   }, [videoUrl]);
 
   if (failed) return null;
@@ -43,14 +49,12 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
         ref={videoRef}
         src={videoUrl}
         autoPlay
-        muted
         playsInline
         preload="auto"
         className="opening-video"
         onCanPlay={() => setCanStart(true)}
         onEnded={onDone}
         onError={() => {
-          // If even the fallback fails, just proceed
           setFailed(true);
           onDone();
         }}
@@ -58,12 +62,16 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
       {!canStart && (
         <button
           className="opening-start-button"
-          onClick={() =>
-            videoRef.current
-              ?.play()
+          onClick={() => {
+            const video = videoRef.current;
+            if (!video) return;
+            video.muted = false;
+            video.volume = 1;
+            video
+              .play()
               .then(() => setCanStart(true))
-              .catch(onDone)
-          }
+              .catch(onDone);
+          }}
         >
           Enter Portal
         </button>
