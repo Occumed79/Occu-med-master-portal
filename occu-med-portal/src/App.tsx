@@ -44,7 +44,7 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
     };
 
     void tryStart();
-  }, [activeVideoUrl]);
+  }, [videoUrl]);
 
   if (failed) return null;
 
