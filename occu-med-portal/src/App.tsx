@@ -7,45 +7,29 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import Login from "@/pages/Login";
-import { OPENING_VIDEO_KEY } from "@/lib/config";
 
 const queryClient = new QueryClient();
 
-// The background solar system video — used as opening intro if no custom video is set
-const FALLBACK_VIDEO_URL = '/assets/portal-solar-system-bg.mp4';
-
-// How long (ms) to show the fallback video before auto-proceeding to portal
-// The bg video loops, so we can't rely on onEnded — we use a timer instead
-const FALLBACK_INTRO_DURATION = 5000;
+const OPENING_VIDEO_URL =
+  'https://lmfdwtkaaevqwrpbvyai.supabase.co/storage/v1/object/public/portal-assets/opening/1777360444553-Portal_Opening.mp4';
 
 function OpeningVideo({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [canStart, setCanStart] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const customVideoUrl =
-    typeof window !== 'undefined'
-      ? localStorage.getItem(OPENING_VIDEO_KEY) || null
-      : null;
-
-  const videoUrl = customVideoUrl || FALLBACK_VIDEO_URL;
-  const isCustom = !!customVideoUrl;
-
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    video.muted = true;
-    video.play().then(() => setCanStart(true)).catch(() => setCanStart(false));
-  }, [videoUrl]);
-
-  // If using the fallback looping bg video, auto-advance after FALLBACK_INTRO_DURATION
-  useEffect(() => {
-    if (isCustom) return; // custom video uses onEnded
-    const timer = setTimeout(() => {
-      onDone();
-    }, FALLBACK_INTRO_DURATION);
-    return () => clearTimeout(timer);
-  }, [isCustom, onDone]);
+    // Do NOT mute — user wants sound
+    const attempt = video.play();
+    if (attempt) {
+      attempt.then(() => setCanStart(true)).catch(() => {
+        // Autoplay with sound was blocked — show the Enter button
+        setCanStart(false);
+      });
+    }
+  }, []);
 
   if (failed) return null;
 
@@ -53,30 +37,29 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
     <div className="opening-video-overlay">
       <video
         ref={videoRef}
-        src={videoUrl}
+        src={OPENING_VIDEO_URL}
         autoPlay
-        muted
         playsInline
         preload="auto"
         className="opening-video"
         onCanPlay={() => setCanStart(true)}
-        onEnded={isCustom ? onDone : undefined}
+        onEnded={onDone}
         onError={() => {
           setFailed(true);
           onDone();
         }}
       />
+      {/* Show "Enter Portal" if autoplay with sound was blocked */}
       {!canStart && (
         <button
           className="opening-start-button"
-          onClick={() =>
-            videoRef.current
-              ?.play()
+          onClick={() => {
+            videoRef.current?.play()
               .then(() => setCanStart(true))
-              .catch(onDone)
-          }
+              .catch(onDone);
+          }}
         >
-          Enter Portal
+          ▶ Enter Portal
         </button>
       )}
       <button onClick={onDone} className="opening-skip-button">
