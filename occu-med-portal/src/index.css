@@ -286,7 +286,6 @@
   background: #000;
 }
 
-.opening-skip-button,
 .opening-start-button {
   position: absolute;
   left: 1rem;
@@ -300,5 +299,4 @@
   cursor: pointer;
 }
 
-.opening-skip-button { bottom: 1rem; }
 .opening-start-button { bottom: 3.25rem; }

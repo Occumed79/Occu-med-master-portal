@@ -85,9 +85,6 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
           Enter Portal
         </button>
       )}
-      <button onClick={onDone} className="opening-skip-button">
-        Skip ›
-      </button>
     </div>
   );
 }
