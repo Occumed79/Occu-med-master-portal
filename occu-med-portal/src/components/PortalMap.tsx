@@ -9,7 +9,7 @@ type LaunchState = { iframeUrl: string; videoUrl: string | null; label: string; 
 const USERS_KEY = 'occu_med_portal_users_v1';
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL ?? '';
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD ?? '';
-const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
+const ARTWORK_SRC = '/assets/portal-solar-system-final.jpg';
 
 function buildEmpty(): PlanetSettings {
   return Object.fromEntries(PORTALS.map((p) => [p.id, { url: p.url, videoUrl: p.videoUrl }])) as PlanetSettings;
@@ -211,7 +211,7 @@ export default function PortalMap() {
 
   return (
     <div className="portal-artwork-scene">
-      <video src={ARTWORK_SRC} className="portal-artwork" autoPlay muted loop playsInline preload="auto" />
+      <img src={ARTWORK_SRC} className="portal-artwork" alt="Portal" />
 
       {PORTALS.map((planet) => (
         <motion.button
