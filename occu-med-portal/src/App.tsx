@@ -10,28 +10,30 @@ import Login from "@/pages/Login";
 
 const queryClient = new QueryClient();
 
+// Opening video hardcoded from Supabase Storage
 const OPENING_VIDEO_URL =
   'https://lmfdwtkaaevqwrpbvyai.supabase.co/storage/v1/object/public/portal-assets/opening/1777360444553-Portal_Opening.mp4';
 
 function OpeningVideo({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [canStart, setCanStart] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [needsClick, setNeedsClick] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
-    // Do NOT mute — user wants sound
+    if (!video) { onDone(); return; }
+
     const attempt = video.play();
     if (attempt) {
-      attempt.then(() => setCanStart(true)).catch(() => {
-        // Autoplay with sound was blocked — show the Enter button
-        setCanStart(false);
+      attempt.catch(() => {
+        // Autoplay with sound blocked — show Enter button
+        setNeedsClick(true);
       });
     }
-  }, []);
 
-  if (failed) return null;
+    // Safety fallback: if video hasn't ended after 30s, dismiss anyway
+    const timer = setTimeout(onDone, 30000);
+    return () => clearTimeout(timer);
+  }, [onDone]);
 
   return (
     <div className="opening-video-overlay">
@@ -42,21 +44,15 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
         playsInline
         preload="auto"
         className="opening-video"
-        onCanPlay={() => setCanStart(true)}
         onEnded={onDone}
-        onError={() => {
-          setFailed(true);
-          onDone();
-        }}
+        onError={onDone}
       />
-      {/* Show "Enter Portal" if autoplay with sound was blocked */}
-      {!canStart && (
+      {needsClick && (
         <button
           className="opening-start-button"
           onClick={() => {
-            videoRef.current?.play()
-              .then(() => setCanStart(true))
-              .catch(onDone);
+            videoRef.current?.play().catch(onDone);
+            setNeedsClick(false);
           }}
         >
           ▶ Enter Portal
@@ -87,9 +83,11 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {!introPlayed && <OpeningVideo onDone={() => setIntroPlayed(true)} />}
+        {/* Portal is always mounted and interactive — just invisible until intro done */}
         <div
           style={{
             opacity: introPlayed ? 1 : 0,
+            pointerEvents: introPlayed ? 'all' : 'none',
             transition: 'opacity 0.8s ease',
             height: '100vh',
           }}
