@@ -12,7 +12,7 @@ const queryClient = new QueryClient();
 
 // Opening video hardcoded from Supabase Storage
 const OPENING_VIDEO_URL =
-  'https://lmfdwtkaaevqwrpbvyai.supabase.co/storage/v1/object/public/portal-assets/opening/1777360444553-Portal_Opening.mp4';
+  'https://res.cloudinary.com/dhsvsnnec/video/upload/Portal-Opening_z8nexs.mp4';
 
 function OpeningVideo({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
