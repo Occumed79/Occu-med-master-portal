@@ -94,7 +94,7 @@ export default function PortalMap() {
     }
     const conf = settings[planet.id];
     if (!conf?.url) return;
-    const transitionVideo = conf.videoUrl || openingVideoUrl || null;
+    const transitionVideo = conf.videoUrl || null;
     setLaunch({ iframeUrl: conf.url, videoUrl: transitionVideo, label: planet.label, glow: planet.glow, videoOver: !transitionVideo });
   };
 
@@ -349,3 +349,4 @@ export default function PortalMap() {
     </div>
   );
 }
+
