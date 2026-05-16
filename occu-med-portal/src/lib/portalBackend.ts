@@ -9,6 +9,7 @@ export type PlanetSetting = {
 export type PlanetSettings = Record<PortalPermissionKey, PlanetSetting>;
 
 export type ManagedUser = {
+  id?: string;
   email: string;
   role: 'Admin' | 'User';
   permissions: PortalPermissionKey[];
@@ -16,7 +17,6 @@ export type ManagedUser = {
 
 export type PortalBackendState = {
   settings?: Partial<PlanetSettings>;
-  users?: ManagedUser[];
   openingVideoUrl?: string;
   audioUrl?: string;
 };
