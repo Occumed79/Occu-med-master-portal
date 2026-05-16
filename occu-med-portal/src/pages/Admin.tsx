@@ -22,6 +22,8 @@ type PortalUserRow = {
   permissions: unknown;
 };
 
+const INVITABLE_PORTALS = PORTALS.filter((portal) => portal.id !== 'admin');
+
 function buildEmptySettings(): PlanetSettings {
   return Object.fromEntries(
     PORTALS.map((portal) => [portal.id, { url: portal.url, videoUrl: portal.videoUrl }]),
@@ -37,8 +39,8 @@ function normalizeUser(row: PortalUserRow): ManagedUser {
   };
 }
 
-function emptyUser(email: string): ManagedUser {
-  return { email: email.toLowerCase(), role: 'User', permissions: [] };
+function buildUser(email: string, permissions: PortalPermissionKey[] = []): ManagedUser {
+  return { email: email.toLowerCase(), role: 'User', permissions };
 }
 
 export default function Admin() {
@@ -48,6 +50,7 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePermissions, setInvitePermissions] = useState<PortalPermissionKey[]>([]);
   const [draftSettings, setDraftSettings] = useState<PlanetSettings>(() => buildEmptySettings());
   const [openingVideoUrl, setOpeningVideoUrl] = useState('');
   const [audioUrl, setAudioUrl] = useState('');
@@ -121,6 +124,14 @@ export default function Admin() {
       });
   }, [isLive, isAdmin]);
 
+  const toggleInvitePermission = (permission: PortalPermissionKey) => {
+    setInvitePermissions((current) =>
+      current.includes(permission)
+        ? current.filter((item) => item !== permission)
+        : [...current, permission],
+    );
+  };
+
   const inviteUser = async () => {
     const email = inviteEmail.trim().toLowerCase();
     if (!email || !canManage) return;
@@ -129,7 +140,7 @@ export default function Admin() {
     setMessage('');
 
     try {
-      const nextUser = emptyUser(email);
+      const nextUser = buildUser(email, invitePermissions);
 
       if (isLive) {
         if (!supabase) throw new Error('Supabase is not configured.');
@@ -151,9 +162,19 @@ export default function Admin() {
         if (inviteError) throw inviteError;
       }
 
-      setUsers((current) => (current.some((entry) => entry.email === email) ? current : [...current, nextUser]));
+      setUsers((current) => {
+        const existing = current.some((entry) => entry.email === email);
+        return existing
+          ? current.map((entry) => (entry.email === email ? { ...entry, permissions: invitePermissions } : entry))
+          : [...current, nextUser];
+      });
       setInviteEmail('');
-      setMessage(isLive ? `Invitation sent to ${email}. Add portal permissions, then save changes.` : `Preview user added: ${email}`);
+      setInvitePermissions([]);
+      setMessage(
+        isLive
+          ? `Invitation sent to ${email} with ${invitePermissions.length} portal${invitePermissions.length === 1 ? '' : 's'} assigned.`
+          : `Preview user added: ${email}`,
+      );
     } catch (error: unknown) {
       const detail = error instanceof Error ? error.message : 'Unknown invite error';
       setMessage(`Unable to invite user: ${detail}`);
@@ -217,7 +238,7 @@ export default function Admin() {
     setUsers((current) =>
       current.map((entry) =>
         entry.email === email
-          ? { ...entry, permissions: PORTALS.map((portal) => portal.permissionKey) }
+          ? { ...entry, permissions: INVITABLE_PORTALS.map((portal) => portal.permissionKey) }
           : entry,
       ),
     );
@@ -382,7 +403,7 @@ export default function Admin() {
               <CardHeader>
                 <CardTitle>Invite User</CardTitle>
                 <CardDescription className="text-white/55">
-                  Sends a Supabase magic sign-in link and creates a central permission record for that email.
+                  Enter the person’s email, select the exact portals they should access, then send the invite.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -395,8 +416,55 @@ export default function Admin() {
                     className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-cyan-200/50"
                   />
                   <Button onClick={inviteUser} disabled={!canManage || saving} className="bg-white text-black hover:bg-cyan-100">
-                    {saving ? 'Working...' : 'Invite by Email'}
+                    {saving ? 'Working...' : 'Send Invite'}
                   </Button>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-100/80">Portal Access</p>
+                      <p className="text-xs text-white/45">Selected access is saved before the invite email is sent.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setInvitePermissions(INVITABLE_PORTALS.map((portal) => portal.permissionKey))}
+                        className="rounded-full border border-cyan-200/25 bg-cyan-200/10 px-3 py-1 text-xs text-cyan-100"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInvitePermissions([])}
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {INVITABLE_PORTALS.map((portal) => {
+                      const selected = invitePermissions.includes(portal.permissionKey);
+                      return (
+                        <button
+                          key={portal.id}
+                          type="button"
+                          onClick={() => toggleInvitePermission(portal.permissionKey)}
+                          className="rounded-xl border px-3 py-2 text-left text-sm transition"
+                          style={{
+                            borderColor: selected ? `${portal.glow}aa` : 'rgba(255,255,255,0.12)',
+                            background: selected ? `${portal.glow}24` : 'rgba(255,255,255,0.04)',
+                            color: selected ? '#fff' : 'rgba(255,255,255,0.62)',
+                            boxShadow: selected ? `0 0 18px ${portal.glow}33` : 'none',
+                          }}
+                        >
+                          {portal.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -415,7 +483,7 @@ export default function Admin() {
                       <tr style={{ background: 'rgba(255,255,255,0.06)' }}>
                         <th style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>User</th>
                         <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Role</th>
-                        {PORTALS.filter((portal) => portal.id !== 'admin').map((portal) => (
+                        {INVITABLE_PORTALS.map((portal) => (
                           <th key={portal.id} style={{ padding: '0.75rem 0.25rem', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'center', color: portal.glow }}>
                             {portal.label}
                           </th>
@@ -438,7 +506,7 @@ export default function Admin() {
                               {managedUser.role}
                             </button>
                           </td>
-                          {PORTALS.filter((portal) => portal.id !== 'admin').map((portal) => {
+                          {INVITABLE_PORTALS.map((portal) => {
                             const checked = managedUser.permissions.includes(portal.permissionKey);
                             return (
                               <td key={portal.id} style={{ padding: '0.75rem 0.25rem', textAlign: 'center' }}>
@@ -484,7 +552,7 @@ export default function Admin() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
-                {PORTALS.filter((portal) => portal.id !== 'admin').map((portal) => (
+                {INVITABLE_PORTALS.map((portal) => (
                   <div key={portal.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <div className="mb-3 text-sm font-bold uppercase tracking-[0.18em]" style={{ color: portal.glow }}>
                       {portal.label}
