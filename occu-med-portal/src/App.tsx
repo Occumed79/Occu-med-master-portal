@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import Login from "@/pages/Login";
+import SetupAccount from "@/pages/SetupAccount";
 import { loadPortalState } from '@/lib/portalBackend';
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/admin" component={Admin} />
       <Route path="/login" component={Login} />
+      <Route path="/setup-account" component={SetupAccount} />
       <Route component={NotFound} />
     </Switch>
   );
