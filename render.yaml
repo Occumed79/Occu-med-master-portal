@@ -2,7 +2,7 @@ services:
   - type: web
     name: occu-med-portal
     env: static
-    buildCommand: npm install -g pnpm@latest && pnpm install --frozen-lockfile && cd occu-med-portal && pnpm run build
+    buildCommand: pnpm install --no-frozen-lockfile && pnpm --filter @workspace/occu-med-portal run build
     staticPublishPath: occu-med-portal/dist/public
     envVars:
       - key: PORT
@@ -13,6 +13,8 @@ services:
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
+      - key: VITE_SUPABASE_STORAGE_BUCKET
+        value: portal-assets
     routes:
       - type: rewrite
         source: /*
