@@ -15,6 +15,11 @@ const queryClient = new QueryClient();
 const DEFAULT_OPENING_VIDEO_URL =
   'https://res.cloudinary.com/dhsvsnnec/video/upload/Portal-Opening_z8nexs.mp4';
 
+function shouldShowIntro() {
+  if (typeof window === 'undefined') return true;
+  return !['/login', '/admin', '/setup-account'].includes(window.location.pathname);
+}
+
 function OpeningVideo({ videoUrl, onDone }: { videoUrl: string; onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [needsClick, setNeedsClick] = useState(false);
@@ -80,10 +85,13 @@ function Router() {
 }
 
 function App() {
-  const [introPlayed, setIntroPlayed] = useState(false);
+  const showIntro = shouldShowIntro();
+  const [introPlayed, setIntroPlayed] = useState(!showIntro);
   const [openingVideoUrl, setOpeningVideoUrl] = useState(DEFAULT_OPENING_VIDEO_URL);
 
   useEffect(() => {
+    if (!showIntro) return;
+
     let mounted = true;
 
     async function loadOpeningVideo() {
@@ -100,7 +108,7 @@ function App() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [showIntro]);
 
   return (
     <QueryClientProvider client={queryClient}>
