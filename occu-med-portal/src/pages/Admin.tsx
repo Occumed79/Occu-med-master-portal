@@ -144,7 +144,7 @@ export default function Admin() {
           email,
           options: {
             shouldCreateUser: true,
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: `${window.location.origin}/setup-account`,
           },
         });
 
