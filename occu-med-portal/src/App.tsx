@@ -7,30 +7,31 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import Login from "@/pages/Login";
+import { loadPortalState } from '@/lib/portalBackend';
 
 const queryClient = new QueryClient();
 
-// Opening video hardcoded from Supabase Storage
-const OPENING_VIDEO_URL =
+const DEFAULT_OPENING_VIDEO_URL =
   'https://res.cloudinary.com/dhsvsnnec/video/upload/Portal-Opening_z8nexs.mp4';
 
-function OpeningVideo({ onDone }: { onDone: () => void }) {
+function OpeningVideo({ videoUrl, onDone }: { videoUrl: string; onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [needsClick, setNeedsClick] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) { onDone(); return; }
+    if (!video) {
+      onDone();
+      return;
+    }
 
     const attempt = video.play();
     if (attempt) {
       attempt.catch(() => {
-        // Autoplay with sound blocked — show Enter button
         setNeedsClick(true);
       });
     }
 
-    // Safety fallback: if video hasn't ended after 30s, dismiss anyway
     const timer = setTimeout(onDone, 30000);
     return () => clearTimeout(timer);
   }, [onDone]);
@@ -39,7 +40,7 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
     <div className="opening-video-overlay">
       <video
         ref={videoRef}
-        src={OPENING_VIDEO_URL}
+        src={videoUrl}
         autoPlay
         playsInline
         preload="auto"
@@ -55,11 +56,11 @@ function OpeningVideo({ onDone }: { onDone: () => void }) {
             setNeedsClick(false);
           }}
         >
-          ▶ Enter Portal
+          Enter Portal
         </button>
       )}
       <button onClick={onDone} className="opening-skip-button">
-        Skip ›
+        Skip
       </button>
     </div>
   );
@@ -78,12 +79,31 @@ function Router() {
 
 function App() {
   const [introPlayed, setIntroPlayed] = useState(false);
+  const [openingVideoUrl, setOpeningVideoUrl] = useState(DEFAULT_OPENING_VIDEO_URL);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadOpeningVideo() {
+      const state = await loadPortalState();
+      if (!mounted) return;
+
+      if (state?.openingVideoUrl?.trim()) {
+        setOpeningVideoUrl(state.openingVideoUrl.trim());
+      }
+    }
+
+    void loadOpeningVideo();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {!introPlayed && <OpeningVideo onDone={() => setIntroPlayed(true)} />}
-        {/* Portal is always mounted and interactive — just invisible until intro done */}
+        {!introPlayed && <OpeningVideo videoUrl={openingVideoUrl} onDone={() => setIntroPlayed(true)} />}
         <div
           style={{
             opacity: introPlayed ? 1 : 0,
