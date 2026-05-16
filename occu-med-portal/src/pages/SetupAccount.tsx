@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
-import { ShieldCheck, Sparkles, Orbit, ArrowRight } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../hooks/useAuth';
@@ -39,8 +38,8 @@ export default function SetupAccount() {
         <Card className="w-full max-w-xl overflow-hidden border-white/15 bg-black/35 text-white shadow-[0_30px_120px_rgba(0,0,0,0.55)] backdrop-blur-2xl">
           <div className="h-1 w-full bg-gradient-to-r from-cyan-300 via-blue-400 to-violet-400" />
           <CardHeader className="space-y-6 p-8 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-200/25 bg-cyan-200/10 shadow-[0_0_40px_rgba(103,232,249,0.22)]">
-              {user ? <ShieldCheck className="h-8 w-8 text-cyan-100" /> : <Orbit className="h-8 w-8 text-cyan-100" />}
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-200/25 bg-cyan-200/10 text-3xl shadow-[0_0_40px_rgba(103,232,249,0.22)]">
+              {user ? '✓' : '◎'}
             </div>
 
             <div>
@@ -55,7 +54,7 @@ export default function SetupAccount() {
 
             {user && (
               <div className="mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/75">
-                <Sparkles className="h-4 w-4 text-cyan-200" />
+                <span className="text-cyan-200">✦</span>
                 <span className="truncate">Signed in as {user.email}</span>
               </div>
             )}
@@ -63,8 +62,7 @@ export default function SetupAccount() {
 
           <CardFooter className="flex flex-col gap-3 px-8 pb-8">
             <Button onClick={() => setLocation(user ? '/' : '/login')} className="group w-full bg-white text-black hover:bg-cyan-100">
-              {user ? 'Enter Portal' : 'Go to Login'}
-              <ArrowRight className="ml-2 h-4 w-4 transition group-hover:translate-x-1" />
+              {user ? 'Enter Portal' : 'Go to Login'} <span className="ml-2 transition group-hover:translate-x-1">→</span>
             </Button>
             <p className="text-center text-xs leading-5 text-white/35">
               Access is controlled by your assigned portal permissions. Contact an admin if a planet is visible but does not open for your account.
