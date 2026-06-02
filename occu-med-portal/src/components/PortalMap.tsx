@@ -15,6 +15,10 @@ type LaunchState = {
 
 const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
 
+// Emergency bypass: keeps the planet portal links usable while Supabase Auth/magic-link login is being fixed.
+// Set this back to false after Supabase Auth is working again.
+const TEMP_DISABLE_PORTAL_AUTH = true;
+
 function buildEmpty(): PlanetSettings {
   return Object.fromEntries(
     PORTALS.map((portal) => [portal.id, { url: portal.url, videoUrl: portal.videoUrl }]),
@@ -36,7 +40,7 @@ export default function PortalMap() {
     let mounted = true;
 
     async function loadSharedPortalConfig() {
-      if (isLive && authLoading) return;
+      if (!TEMP_DISABLE_PORTAL_AUTH && isLive && authLoading) return;
       setIsLoadingConfig(true);
       setNotice('');
 
@@ -74,6 +78,10 @@ export default function PortalMap() {
   };
 
   const requirePortalAccess = (planet: PortalDef): boolean => {
+    if (TEMP_DISABLE_PORTAL_AUTH) {
+      return true;
+    }
+
     if (!isLive) {
       setNotice('Supabase is not configured yet, so secure portal access cannot be checked.');
       return false;
@@ -101,6 +109,11 @@ export default function PortalMap() {
     setNotice('');
 
     if (planet.id === 'admin') {
+      if (TEMP_DISABLE_PORTAL_AUTH) {
+        setLocation('/admin');
+        return;
+      }
+
       if (!isLive) {
         setLocation('/admin');
         return;
