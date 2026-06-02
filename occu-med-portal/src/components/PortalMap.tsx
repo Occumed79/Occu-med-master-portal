@@ -3,7 +3,6 @@ import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { PORTALS, type PortalDef, type PortalPermissionKey } from '@/lib/config';
 import { loadPortalState, type PlanetSettings } from '@/lib/portalBackend';
-import { useAuth } from '../hooks/useAuth';
 
 type LaunchState = {
   iframeUrl: string;
@@ -15,10 +14,6 @@ type LaunchState = {
 
 const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
 
-// Emergency bypass: keeps the planet portal links usable while Supabase Auth/magic-link login is being fixed.
-// Set this back to false after Supabase Auth is working again.
-const TEMP_DISABLE_PORTAL_AUTH = true;
-
 function buildEmpty(): PlanetSettings {
   return Object.fromEntries(
     PORTALS.map((portal) => [portal.id, { url: portal.url, videoUrl: portal.videoUrl }]),
@@ -26,7 +21,6 @@ function buildEmpty(): PlanetSettings {
 }
 
 export default function PortalMap() {
-  const { user, permissions, loading: authLoading, isLive, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
   const [settings, setSettings] = useState<PlanetSettings>(() => buildEmpty());
   const [audioUrl, setAudioUrl] = useState('');
@@ -40,7 +34,6 @@ export default function PortalMap() {
     let mounted = true;
 
     async function loadSharedPortalConfig() {
-      if (!TEMP_DISABLE_PORTAL_AUTH && isLive && authLoading) return;
       setIsLoadingConfig(true);
       setNotice('');
 
@@ -50,7 +43,7 @@ export default function PortalMap() {
 
         if (backendState?.settings) {
           setSettings({ ...buildEmpty(), ...backendState.settings });
-        } else if (isLive && user) {
+        } else {
           setNotice('Portal links are not configured yet. An admin needs to save them in the Admin Command Center.');
         }
 
@@ -71,74 +64,15 @@ export default function PortalMap() {
     return () => {
       mounted = false;
     };
-  }, [authLoading, isLive, user]);
-
-  const redirectToLogin = () => {
-    setLocation('/login?next=/');
-  };
-
-  const requirePortalAccess = (planet: PortalDef): boolean => {
-    if (TEMP_DISABLE_PORTAL_AUTH) {
-      return true;
-    }
-
-    if (!isLive) {
-      setNotice('Supabase is not configured yet, so secure portal access cannot be checked.');
-      return false;
-    }
-
-    if (authLoading) {
-      setNotice('Checking your portal access...');
-      return false;
-    }
-
-    if (!user) {
-      redirectToLogin();
-      return false;
-    }
-
-    if (!permissions.includes(planet.permissionKey)) {
-      setNotice(`Your account does not currently have access to the ${planet.label} portal.`);
-      return false;
-    }
-
-    return true;
-  };
+  }, []);
 
   const handlePlanetClick = (planet: PortalDef) => {
     setNotice('');
 
     if (planet.id === 'admin') {
-      if (TEMP_DISABLE_PORTAL_AUTH) {
-        setLocation('/admin');
-        return;
-      }
-
-      if (!isLive) {
-        setLocation('/admin');
-        return;
-      }
-
-      if (authLoading) {
-        setNotice('Checking admin access...');
-        return;
-      }
-
-      if (!user) {
-        setLocation('/login?next=/admin');
-        return;
-      }
-
-      if (!isAdmin) {
-        setNotice('Your account is signed in, but it does not have Admin access.');
-        return;
-      }
-
       setLocation('/admin');
       return;
     }
-
-    if (!requirePortalAccess(planet)) return;
 
     const conf = settings[planet.id as PortalPermissionKey];
     const url = conf?.url?.trim();
@@ -218,7 +152,7 @@ export default function PortalMap() {
 
       {(notice || isLoadingConfig) && (
         <div className="portal-status-message">
-          {notice || 'Loading secure portal configuration...'}
+          {notice || 'Loading portal configuration...'}
         </div>
       )}
 
