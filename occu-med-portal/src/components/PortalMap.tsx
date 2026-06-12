@@ -6,7 +6,7 @@ import { loadPortalState, type PlanetSettings } from '@/lib/portalBackend';
 import { useAuth } from '../hooks/useAuth';
 
 type LaunchState = {
-  iframeUrl: string;
+  targetUrl: string;
   videoUrl: string | null;
   label: string;
   glow: string;
@@ -131,17 +131,21 @@ export default function PortalMap() {
     const url = conf?.url?.trim();
 
     if (!url) {
-      setNotice(`${planet.label} does not have a Render URL configured yet.`);
+      setNotice(`${planet.label} does not have a link configured yet.`);
       return;
     }
 
     const transitionVideo = conf.videoUrl?.trim() || null;
+    if (!transitionVideo) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
     setLaunch({
-      iframeUrl: url,
+      targetUrl: url,
       videoUrl: transitionVideo,
       label: planet.label,
       glow: planet.glow,
-      videoOver: !transitionVideo,
+      videoOver: false,
     });
   };
 
@@ -150,7 +154,13 @@ export default function PortalMap() {
       launchAudioRef.current.pause();
       launchAudioRef.current.currentTime = 0;
     }
-    setLaunch((prev) => (prev ? { ...prev, videoOver: true } : null));
+    setLaunch((prev: LaunchState | null) => {
+      if (prev) {
+        window.open(prev.targetUrl, '_blank', 'noopener,noreferrer');
+        return { ...prev, videoOver: true };
+      }
+      return null;
+    });
   };
 
   const handleLaunchClose = () => {
@@ -211,21 +221,6 @@ export default function PortalMap() {
 
       {launch && (
         <div className="portal-launch-overlay">
-          <iframe
-            src={launch.iframeUrl}
-            title={launch.label}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              opacity: launch.videoOver ? 1 : 0,
-              transition: 'opacity 0.8s ease',
-              zIndex: 1,
-            }}
-            allow="fullscreen"
-          />
           {!launch.videoOver && (
             <div className="portal-launch-loading">
               <div className="portal-launch-media">
