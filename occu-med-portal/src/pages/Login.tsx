@@ -50,7 +50,13 @@ export default function Login() {
     });
 
     if (error) {
-      setMessage(error.message);
+      console.error('Magic link error:', error);
+      const details = [
+        error.message,
+        error.status ? `Status: ${error.status}` : '',
+        error.name ? `Name: ${error.name}` : '',
+      ].filter(Boolean).join(' | ');
+      setMessage(details);
     } else {
       setMessage('Check your email for the secure sign-in link.');
     }
@@ -71,7 +77,13 @@ export default function Login() {
     });
 
     if (error) {
-      setMessage(error.message);
+      console.error('Password login error:', error);
+      const details = [
+        error.message,
+        error.status ? `Status: ${error.status}` : '',
+        error.name ? `Name: ${error.name}` : '',
+      ].filter(Boolean).join(' | ');
+      setMessage(details);
     } else {
       setLocation(getNextPath());
     }
