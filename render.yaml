@@ -15,7 +15,6 @@ services:
         sync: false
       - key: VITE_SUPABASE_STORAGE_BUCKET
         value: portal-assets
-    routes:
-      - type: rewrite
-        source: /*
+    redirects:
+      - source: /*
         destination: /index.html
