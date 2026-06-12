@@ -44,8 +44,8 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
-        shouldCreateUser: false,
-        emailRedirectTo: `${window.location.origin}${getNextPath()}`,
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/setup-account`,
       },
     });
 
