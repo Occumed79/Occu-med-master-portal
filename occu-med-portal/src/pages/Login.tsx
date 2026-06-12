@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 function getNextPath(): string {
@@ -22,13 +22,15 @@ export default function Login() {
   const [message, setMessage] = useState('');
   const [mode, setMode] = useState<'magic' | 'password'>('magic');
 
-  if (!isLive) {
-    setLocation('/');
-    return null;
-  }
+  useEffect(() => {
+    if (!isLive) {
+      setLocation('/');
+    } else if (user) {
+      setLocation(getNextPath());
+    }
+  }, [isLive, user, setLocation]);
 
-  if (user) {
-    setLocation(getNextPath());
+  if (!isLive || user) {
     return null;
   }
 
