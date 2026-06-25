@@ -13,6 +13,20 @@ function getNextPath(): string {
   return next?.startsWith('/') ? next : '/';
 }
 
+function formatAuthError(error: { message?: string; status?: number; name?: string }) {
+  const details = [
+    error.message,
+    error.status ? `Status: ${error.status}` : '',
+    error.name ? `Name: ${error.name}` : '',
+  ].filter(Boolean).join(' | ');
+
+  if (error.status === 500 && /magic link|email|smtp|send/i.test(details)) {
+    return `${details}. Supabase Auth could not send the email. Check Supabase Auth custom SMTP settings for the connected domain mailbox.`;
+  }
+
+  return details;
+}
+
 export default function Login() {
   const { isLive, user } = useAuth();
   const [, setLocation] = useLocation();
@@ -51,12 +65,7 @@ export default function Login() {
 
     if (error) {
       console.error('Magic link error:', error);
-      const details = [
-        error.message,
-        error.status ? `Status: ${error.status}` : '',
-        error.name ? `Name: ${error.name}` : '',
-      ].filter(Boolean).join(' | ');
-      setMessage(details);
+      setMessage(formatAuthError(error));
     } else {
       setMessage('Check your email for the secure sign-in link.');
     }
@@ -78,12 +87,7 @@ export default function Login() {
 
     if (error) {
       console.error('Password login error:', error);
-      const details = [
-        error.message,
-        error.status ? `Status: ${error.status}` : '',
-        error.name ? `Name: ${error.name}` : '',
-      ].filter(Boolean).join(' | ');
-      setMessage(details);
+      setMessage(formatAuthError(error));
     } else {
       setLocation(getNextPath());
     }
