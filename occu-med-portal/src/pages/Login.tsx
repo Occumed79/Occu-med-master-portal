@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 function getNextPath(): string {
   if (typeof window === 'undefined') return '/';
@@ -12,39 +13,85 @@ function getNextPath(): string {
   return next?.startsWith('/') ? next : '/';
 }
 
+function formatAuthError(error: { message?: string; status?: number; name?: string }) {
+  const details = [
+    error.message,
+    error.status ? `Status: ${error.status}` : '',
+    error.name ? `Name: ${error.name}` : '',
+  ].filter(Boolean).join(' | ');
+
+  if (error.status === 500 && /magic link|email|smtp|send/i.test(details)) {
+    return `${details}. Supabase Auth could not send the email. Check Supabase Auth custom SMTP settings for the connected domain mailbox.`;
+  }
+
+  return details;
+}
+
 export default function Login() {
-  const { user, signIn } = useAuth();
+  const { isLive, user } = useAuth();
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [mode, setMode] = useState<'magic' | 'password'>('magic');
 
   useEffect(() => {
-    if (user) {
+    if (!isLive) {
+      setLocation('/');
+    } else if (user) {
       setLocation(getNextPath());
     }
-  }, [user, setLocation]);
+  }, [isLive, user, setLocation]);
 
-  if (user) {
+  if (!isLive || user) {
     return null;
   }
 
-  const handlePasswordLogin = async (event: React.FormEvent) => {
+  const sendMagicLink = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!supabase) return;
 
     setLoading(true);
     setMessage('');
 
-    const result = await signIn(email, password);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/setup-account`,
+      },
+    });
 
-    if (result.error) {
-      setMessage(result.error);
-      setLoading(false);
-      return;
+    if (error) {
+      console.error('Magic link error:', error);
+      setMessage(formatAuthError(error));
+    } else {
+      setMessage('Check your email for the secure sign-in link.');
     }
 
-    setLocation(getNextPath());
+    setLoading(false);
+  };
+
+  const handlePasswordLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!supabase) return;
+
+    setLoading(true);
+    setMessage('');
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (error) {
+      console.error('Password login error:', error);
+      setMessage(formatAuthError(error));
+    } else {
+      setLocation(getNextPath());
+    }
+
     setLoading(false);
   };
 
@@ -55,11 +102,28 @@ export default function Login() {
           <div className="text-2xl font-bold tracking-widest text-center text-white glow-text uppercase mb-4">OCCU-MED</div>
           <CardTitle className="text-center text-xl text-white">Secure Access</CardTitle>
           <CardDescription className="text-center text-white/60">
-            Enter your email and portal password to continue.
+            Enter your email to receive a secure portal sign-in link.
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handlePasswordLogin}>
+        <form onSubmit={mode === 'magic' ? sendMagicLink : handlePasswordLogin}>
           <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/5 p-1">
+              <button
+                type="button"
+                onClick={() => setMode('magic')}
+                className={`rounded-lg px-3 py-2 text-xs font-semibold ${mode === 'magic' ? 'bg-white text-black' : 'text-white/60'}`}
+              >
+                Email Link
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('password')}
+                className={`rounded-lg px-3 py-2 text-xs font-semibold ${mode === 'password' ? 'bg-white text-black' : 'text-white/60'}`}
+              >
+                Password
+              </button>
+            </div>
+
             <Input
               type="email"
               placeholder="Email Address"
@@ -69,14 +133,16 @@ export default function Login() {
               required
             />
 
-            <Input
-              type="password"
-              placeholder="Portal Password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-white/30"
-              required
-            />
+            {mode === 'password' && (
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-white/30"
+                required
+              />
+            )}
 
             {message && (
               <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/75">
@@ -86,7 +152,7 @@ export default function Login() {
           </CardContent>
           <CardFooter>
             <Button type="submit" className="w-full bg-white text-black hover:bg-white/90" disabled={loading}>
-              {loading ? 'Authenticating...' : 'Sign In'}
+              {loading ? 'Authenticating...' : mode === 'magic' ? 'Send Secure Link' : 'Sign In'}
             </Button>
           </CardFooter>
         </form>
