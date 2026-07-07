@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { PortalPermissionKey } from './config';
+import type { PortalManagedUser } from './accessControl';
 
 export type PlanetSetting = {
   url: string;
@@ -8,17 +9,13 @@ export type PlanetSetting = {
 
 export type PlanetSettings = Record<PortalPermissionKey, PlanetSetting>;
 
-export type ManagedUser = {
-  id?: string;
-  email: string;
-  role: 'Admin' | 'User';
-  permissions: PortalPermissionKey[];
-};
+export type ManagedUser = PortalManagedUser;
 
 export type PortalBackendState = {
   settings?: Partial<PlanetSettings>;
   openingVideoUrl?: string;
   audioUrl?: string;
+  users?: PortalManagedUser[];
 };
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
