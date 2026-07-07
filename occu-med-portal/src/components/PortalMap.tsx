@@ -13,22 +13,6 @@ type LaunchState = {
   videoOver: boolean;
 };
 
-type ManagedPortalUser = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  username: string;
-  codeDigest: string;
-  permissions: PortalPermissionKey[];
-};
-
-type AccessPrompt = {
-  planet: PortalDef;
-  username: string;
-  code: string;
-  error: string;
-};
-
 const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
 
 function buildEmpty(): PlanetSettings {
@@ -37,21 +21,13 @@ function buildEmpty(): PlanetSettings {
   ) as PlanetSettings;
 }
 
-async function digestCode(value: string): Promise<string> {
-  const bytes = new TextEncoder().encode(value);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(hashBuffer)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
 export default function PortalMap() {
-  const { loading: authLoading, isAdmin } = useAuth();
+  const { user, permissions, loading: authLoading, isLive, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
   const [settings, setSettings] = useState<PlanetSettings>(() => buildEmpty());
-  const [users, setUsers] = useState<ManagedPortalUser[]>([]);
   const [audioUrl, setAudioUrl] = useState('');
   const [launch, setLaunch] = useState<LaunchState | null>(null);
   const [notice, setNotice] = useState('');
-  const [accessPrompt, setAccessPrompt] = useState<AccessPrompt | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const launchVideoRef = useRef<HTMLVideoElement | null>(null);
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -60,6 +36,7 @@ export default function PortalMap() {
     let mounted = true;
 
     async function loadSharedPortalConfig() {
+      if (isLive && authLoading) return;
       setIsLoadingConfig(true);
       setNotice('');
 
@@ -69,17 +46,12 @@ export default function PortalMap() {
 
         if (backendState?.settings) {
           setSettings({ ...buildEmpty(), ...backendState.settings });
-        } else {
+        } else if (isLive && user) {
           setNotice('Portal links are not configured yet. An admin needs to save them in the Admin Command Center.');
         }
 
         if (typeof backendState?.audioUrl === 'string') {
           setAudioUrl(backendState.audioUrl);
-        }
-
-        const stateWithUsers = backendState as { users?: ManagedPortalUser[] } | null;
-        if (Array.isArray(stateWithUsers?.users)) {
-          setUsers(stateWithUsers.users);
         }
       } catch (error: unknown) {
         if (!mounted) return;
@@ -95,9 +67,66 @@ export default function PortalMap() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [authLoading, isLive, user]);
 
-  const startLaunch = (planet: PortalDef) => {
+  const redirectToLogin = () => {
+    setLocation('/login?next=/');
+  };
+
+  const requirePortalAccess = (planet: PortalDef): boolean => {
+    if (!isLive) {
+      setNotice('Supabase is not configured yet, so secure portal access cannot be checked.');
+      return false;
+    }
+
+    if (authLoading) {
+      setNotice('Checking your portal access...');
+      return false;
+    }
+
+    if (!user) {
+      redirectToLogin();
+      return false;
+    }
+
+    if (!permissions.includes(planet.permissionKey)) {
+      setNotice(`Your account does not currently have access to the ${planet.label} portal.`);
+      return false;
+    }
+
+    return true;
+  };
+
+  const handlePlanetClick = (planet: PortalDef) => {
+    setNotice('');
+
+    if (planet.id === 'admin') {
+      if (!isLive) {
+        setLocation('/admin');
+        return;
+      }
+
+      if (authLoading) {
+        setNotice('Checking admin access...');
+        return;
+      }
+
+      if (!user) {
+        setLocation('/login?next=/admin');
+        return;
+      }
+
+      if (!isAdmin) {
+        setNotice('Your account is signed in, but it does not have Admin access.');
+        return;
+      }
+
+      setLocation('/admin');
+      return;
+    }
+
+    if (!requirePortalAccess(planet)) return;
+
     const conf = settings[planet.id as PortalPermissionKey];
     const url = conf?.url?.trim();
 
@@ -111,7 +140,6 @@ export default function PortalMap() {
       window.open(url, '_blank', 'noopener,noreferrer');
       return;
     }
-
     setLaunch({
       targetUrl: url,
       videoUrl: transitionVideo,
@@ -119,45 +147,6 @@ export default function PortalMap() {
       glow: planet.glow,
       videoOver: false,
     });
-  };
-
-  const handlePlanetClick = (planet: PortalDef) => {
-    setNotice('');
-
-    if (planet.id === 'admin') {
-      if (authLoading) {
-        setNotice('Checking admin access...');
-        return;
-      }
-
-      setLocation(isAdmin ? '/admin' : '/login?next=/admin');
-      return;
-    }
-
-    setAccessPrompt({ planet, username: '', code: '', error: '' });
-  };
-
-  const handleAccessSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!accessPrompt) return;
-
-    const username = accessPrompt.username.trim().toLowerCase();
-    const enteredDigest = await digestCode(accessPrompt.code);
-    const matchedUser = users.find((entry) => entry.username.toLowerCase() === username && entry.codeDigest === enteredDigest);
-
-    if (!matchedUser) {
-      setAccessPrompt((current) => current ? { ...current, error: 'Invalid username or code.' } : current);
-      return;
-    }
-
-    if (!matchedUser.permissions.includes(accessPrompt.planet.permissionKey)) {
-      setAccessPrompt((current) => current ? { ...current, error: `This user does not have access to ${current.planet.label}.` } : current);
-      return;
-    }
-
-    const planet = accessPrompt.planet;
-    setAccessPrompt(null);
-    startLaunch(planet);
   };
 
   const handleVideoEnd = () => {
@@ -226,45 +215,7 @@ export default function PortalMap() {
 
       {(notice || isLoadingConfig) && (
         <div className="portal-status-message">
-          {notice || 'Loading portal configuration...'}
-        </div>
-      )}
-
-      {accessPrompt && (
-        <div className="portal-launch-overlay">
-          <form
-            onSubmit={handleAccessSubmit}
-            className="rounded-3xl border border-white/15 bg-black/80 p-6 text-white shadow-2xl backdrop-blur-xl"
-            style={{ width: 'min(420px, calc(100vw - 2rem))' }}
-          >
-            <div className="mb-4 text-center">
-              <div className="text-xs font-bold uppercase tracking-[0.25em] text-white/45">Portal Access</div>
-              <div className="mt-2 text-2xl font-bold" style={{ color: accessPrompt.planet.glow }}>{accessPrompt.planet.label}</div>
-            </div>
-            <div className="space-y-3">
-              <input
-                value={accessPrompt.username}
-                onChange={(event) => setAccessPrompt((current) => current ? { ...current, username: event.target.value, error: '' } : current)}
-                placeholder="Username"
-                className="w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/35"
-                autoFocus
-                required
-              />
-              <input
-                value={accessPrompt.code}
-                onChange={(event) => setAccessPrompt((current) => current ? { ...current, code: event.target.value, error: '' } : current)}
-                placeholder="Access code"
-                type="password"
-                className="w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-white/35"
-                required
-              />
-              {accessPrompt.error && <div className="rounded-xl border border-red-300/30 bg-red-500/15 px-3 py-2 text-sm text-red-100">{accessPrompt.error}</div>}
-            </div>
-            <div className="mt-5 flex gap-3">
-              <button type="button" onClick={() => setAccessPrompt(null)} className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white/70">Cancel</button>
-              <button type="submit" className="flex-1 rounded-xl bg-white px-4 py-3 text-sm font-bold text-black">Enter Portal</button>
-            </div>
-          </form>
+          {notice || 'Loading secure portal configuration...'}
         </div>
       )}
 
