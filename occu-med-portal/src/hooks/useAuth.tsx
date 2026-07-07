@@ -1,105 +1,66 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { PORTALS, type PortalPermissionKey } from '../lib/config';
 
 type PortalRole = 'Admin' | 'User';
 
-type StoredAdminSession = {
-  email: string;
-  role: PortalRole;
-  permissions: PortalPermissionKey[];
-};
-
-const SESSION_KEY = 'occu-med-admin-session';
-
-const ADMIN_EMAIL = String(import.meta.env.VITE_ADMIN_EMAIL ?? '').trim().toLowerCase();
-const ADMIN_PASSWORD = String(import.meta.env.VITE_ADMIN_PASSWORD ?? '');
-
-function makeUser(email: string): User {
-  return { email } as User;
-}
-
-function readStoredSession(): StoredAdminSession | null {
-  try {
-    const raw = window.localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as Partial<StoredAdminSession>;
-    if (!parsed.email || parsed.role !== 'Admin') return null;
-
-    return {
-      email: parsed.email.toLowerCase(),
-      role: 'Admin',
-      permissions: PORTALS.map((portal) => portal.permissionKey),
-    };
-  } catch {
-    window.localStorage.removeItem(SESSION_KEY);
-    return null;
-  }
-}
-
-function saveStoredSession(session: StoredAdminSession) {
-  window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-}
-
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<PortalRole>('User');
   const [loading, setLoading] = useState(true);
-  const [permissions, setPermissions] = useState<PortalPermissionKey[]>([]);
+  const [permissions, setPermissions] = useState<PortalPermissionKey[]>(PORTALS.map((p) => p.permissionKey));
 
   useEffect(() => {
-    const session = readStoredSession();
-
-    if (session) {
-      setUser(makeUser(session.email));
-      setRole('Admin');
-      setPermissions(session.permissions);
+    if (!supabase) {
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user);
+      } else {
+        setPermissions([]);
+        setLoading(false);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user);
+      } else {
+        setPermissions([]);
+        setRole('User');
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
-    const normalizedEmail = email.trim().toLowerCase();
+  const fetchProfile = async (currentUser: User) => {
+    try {
+      if (!supabase || !currentUser.email) return;
+      const { data, error } = await supabase
+        .from('portal_users')
+        .select('role, permissions')
+        .eq('email', currentUser.email.toLowerCase())
+        .maybeSingle();
 
-    if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-      return { error: 'Admin credentials are not configured in Render.' };
+      if (!error && data) {
+        setRole(data.role === 'Admin' ? 'Admin' : 'User');
+        setPermissions(Array.isArray(data.permissions) ? data.permissions : []);
+      } else {
+        setRole('User');
+        setPermissions([]);
+      }
+    } finally {
+      setLoading(false);
     }
-
-    if (normalizedEmail !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
-      return { error: 'Invalid admin credentials.' };
-    }
-
-    const session: StoredAdminSession = {
-      email: normalizedEmail,
-      role: 'Admin',
-      permissions: PORTALS.map((portal) => portal.permissionKey),
-    };
-
-    saveStoredSession(session);
-    setUser(makeUser(session.email));
-    setRole('Admin');
-    setPermissions(session.permissions);
-
-    return {};
   };
 
-  const signOut = () => {
-    window.localStorage.removeItem(SESSION_KEY);
-    setUser(null);
-    setRole('User');
-    setPermissions([]);
-  };
-
-  return {
-    user,
-    role,
-    permissions,
-    loading,
-    isLive: true,
-    isAdmin: role === 'Admin',
-    signIn,
-    signOut,
-  };
+  return { user, role, permissions, loading, isLive: !!supabase, isAdmin: role === 'Admin' };
 }
