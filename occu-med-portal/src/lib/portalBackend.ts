@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import type { PortalPermissionKey } from './config';
+import type { PortalManagedUser } from './accessControl';
 
 export type PlanetSetting = {
   url: string;
@@ -8,100 +8,93 @@ export type PlanetSetting = {
 
 export type PlanetSettings = Record<PortalPermissionKey, PlanetSetting>;
 
-export type ManagedUser = {
-  id?: string;
-  email: string;
-  role: 'Admin' | 'User';
-  permissions: PortalPermissionKey[];
-};
+export type ManagedUser = PortalManagedUser;
 
-export type PortalBackendState = {
+export type PublicPortalState = {
   settings?: Partial<PlanetSettings>;
   openingVideoUrl?: string;
   audioUrl?: string;
 };
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-const storageBucket = (import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string | undefined) ?? 'portal-assets';
+export type AdminPortalState = PublicPortalState & {
+  users: ManagedUser[];
+};
 
-const supabase =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : null;
-
-export async function loadPortalState(): Promise<PortalBackendState | null> {
-  if (!supabase) return null;
-
-  const { data, error } = await supabase
-    .from('portal_settings')
-    .select('data')
-    .eq('id', 1)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Supabase load failed:', error);
-    return null;
+async function parseJson<T>(response: Response): Promise<T> {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof data?.error === 'string' ? data.error : `Request failed with status ${response.status}`;
+    throw new Error(message);
   }
-
-  return (data?.data as PortalBackendState | undefined) ?? null;
+  return data as T;
 }
 
-export async function savePortalState(state: PortalBackendState): Promise<void> {
-  if (!supabase) {
-    throw new Error('Supabase environment variables are missing.');
-  }
-
-  const { error } = await supabase
-    .from('portal_settings')
-    .upsert({
-      id: 1,
-      data: state,
-      updated_at: new Date().toISOString(),
-    });
-
-  if (error) {
-    console.error('Supabase save failed:', error);
-    throw error;
-  }
+export async function loadPortalState(): Promise<PublicPortalState> {
+  const response = await fetch('/api/portal/state', { credentials: 'include' });
+  return parseJson<PublicPortalState>(response);
 }
 
-function sanitizeFileName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._-]/g, '_');
+export async function loadAdminPortalState(): Promise<AdminPortalState> {
+  const response = await fetch('/api/admin/state', { credentials: 'include' });
+  return parseJson<AdminPortalState>(response);
 }
 
-export async function uploadPortalAsset(
-  file: File,
-  pathPrefix: 'transitions' | 'opening' | 'audio',
-): Promise<string> {
-  if (!supabase) {
-    throw new Error('Supabase environment variables are missing.');
-  }
+export async function savePortalSettings(state: PublicPortalState): Promise<void> {
+  const response = await fetch('/api/admin/settings', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(state),
+  });
+  await parseJson<{ ok: true }>(response);
+}
 
-  const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
-  const safeBaseName = sanitizeFileName(file.name.replace(/\.[^.]+$/, ''));
-  const filePath = `${pathPrefix}/${Date.now()}-${safeBaseName}.${ext}`;
+export async function createPortalUser(firstName: string, lastName: string): Promise<ManagedUser & { generatedPin: string }> {
+  const response = await fetch('/api/admin/users', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ firstName, lastName }),
+  });
+  return parseJson<ManagedUser & { generatedPin: string }>(response);
+}
 
-  const { error: uploadError } = await supabase.storage
-    .from(storageBucket)
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false,
-      contentType: file.type || undefined,
-    });
+export async function regeneratePortalUserPin(id: string): Promise<{ generatedPin: string }> {
+  const response = await fetch(`/api/admin/users/${id}/regenerate-pin`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  return parseJson<{ generatedPin: string }>(response);
+}
 
-  if (uploadError) {
-    console.error('Supabase upload failed:', uploadError);
-    throw uploadError;
-  }
+export async function removePortalUser(id: string): Promise<void> {
+  const response = await fetch(`/api/admin/users/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  await parseJson<{ ok: true }>(response);
+}
 
-  const { data } = supabase.storage
-    .from(storageBucket)
-    .getPublicUrl(filePath);
+export async function savePortalUserPermissions(id: string, permissions: PortalPermissionKey[]): Promise<PortalPermissionKey[]> {
+  const response = await fetch(`/api/admin/users/${id}/permissions`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ permissions }),
+  });
+  const data = await parseJson<{ permissions: PortalPermissionKey[] }>(response);
+  return data.permissions;
+}
 
-  if (!data.publicUrl) {
-    throw new Error('Failed to generate public URL for uploaded asset.');
-  }
-
-  return data.publicUrl;
+export async function verifyPortalAccess(username: string, pin: string, portalKey: PortalPermissionKey): Promise<
+  | { allowed: true; portalUrl: string; transitionVideoUrl: string }
+  | { allowed: false; reason: string }
+> {
+  const response = await fetch('/api/portal/verify-access', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, pin, portalKey }),
+  });
+  return parseJson(response);
 }

@@ -1,66 +1,68 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import type { User } from '@supabase/supabase-js';
-import { PORTALS, type PortalPermissionKey } from '../lib/config';
+import { useCallback, useEffect, useState } from 'react';
 
-type PortalRole = 'Admin' | 'User';
+export type AdminSession = {
+  email?: string;
+};
+
+async function parseJson<T>(response: Response): Promise<T> {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof data?.error === 'string' ? data.error : `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+  return data as T;
+}
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<PortalRole>('User');
+  const [user, setUser] = useState<AdminSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const [permissions, setPermissions] = useState<PortalPermissionKey[]>(PORTALS.map((p) => p.permissionKey));
 
-  useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user);
-      } else {
-        setPermissions([]);
-        setLoading(false);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user);
-      } else {
-        setPermissions([]);
-        setRole('User');
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchProfile = async (currentUser: User) => {
+  const refresh = useCallback(async () => {
+    setLoading(true);
     try {
-      if (!supabase || !currentUser.email) return;
-      const { data, error } = await supabase
-        .from('portal_users')
-        .select('role, permissions')
-        .eq('email', currentUser.email.toLowerCase())
-        .maybeSingle();
-
-      if (!error && data) {
-        setRole(data.role === 'Admin' ? 'Admin' : 'User');
-        setPermissions(Array.isArray(data.permissions) ? data.permissions : []);
-      } else {
-        setRole('User');
-        setPermissions([]);
-      }
+      const data = await parseJson<{ isAdmin: boolean }>(await fetch('/api/admin/me', { credentials: 'include' }));
+      setUser(data.isAdmin ? {} : null);
+    } catch {
+      setUser(null);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const loginAdmin = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const data = await parseJson<{ admin?: { email?: string } }>(await fetch('/api/admin/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      }));
+      setUser(data.admin ?? {});
+      return true;
+    } catch {
+      setUser(null);
+      return false;
+    }
   };
 
-  return { user, role, permissions, loading, isLive: !!supabase, isAdmin: role === 'Admin' };
+  const logoutAdmin = async (): Promise<void> => {
+    await fetch('/api/admin/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
+    setUser(null);
+  };
+
+  return {
+    user,
+    role: user ? 'Admin' : 'User',
+    permissions: [],
+    loading,
+    isLive: true,
+    isAdmin: !!user,
+    loginAdmin,
+    logoutAdmin,
+    refresh,
+  };
 }

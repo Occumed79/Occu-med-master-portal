@@ -241,7 +241,7 @@
 .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 12px; }
 .admin-grid-wide { grid-template-columns: repeat(5, minmax(160px, 1fr)); }
 .admin-card { display: grid; gap: 8px; background: rgba(15,23,64,0.84); border: 1px solid rgba(93,114,217,0.72); border-radius: 12px; padding: 10px; }
-.admin-card input, .admin-login-card input, .admin-invite input, .admin-launch input { width: 100%; background: #02071f; border: 1px solid #32417c; border-radius: 8px; padding: 8px; color: #fff; }
+.admin-card input, .admin-login-card input, .admin-user-create input, .admin-launch input { width: 100%; background: #02071f; border: 1px solid #32417c; border-radius: 8px; padding: 8px; color: #fff; }
 .admin-card label, .admin-login-card label, .admin-launch label { color: rgba(255,255,255,0.86); }
 .admin-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 .admin-btn-cancel, .admin-btn-save { border: 1px solid rgba(255,255,255,0.18); border-radius: 999px; padding: 0.55rem 1rem; cursor: pointer; }
@@ -249,7 +249,7 @@
 .admin-btn-save { background: #fff; color: #020617; font-weight: 800; }
 
 .admin-users, .admin-launch { display: grid; gap: 12px; }
-.admin-invite { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.admin-user-create { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
 .admin-user-row { display: grid; gap: 10px; padding: 12px; border: 1px solid rgba(93,114,217,0.55); border-radius: 14px; background: rgba(15,23,64,0.72); }
 .admin-user-row > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .admin-user-row button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: #fff; padding: 0.38rem 0.72rem; cursor: pointer; }
@@ -263,7 +263,7 @@
 
 @media (max-width: 620px) {
   .admin-grid-wide { grid-template-columns: 1fr; }
-  .admin-invite { grid-template-columns: 1fr; }
+  .admin-user-create { grid-template-columns: 1fr; }
 }
 
 .opening-video-overlay {
