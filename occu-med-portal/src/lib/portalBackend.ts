@@ -18,49 +18,59 @@ export type PortalBackendState = {
   users?: PortalManagedUser[];
 };
 
+const configuredApiBase = (import.meta.env.VITE_PORTAL_API_URL as string | undefined)?.trim() ?? '';
+const apiBase = configuredApiBase.replace(/\/$/, '');
+const adminPassword = (import.meta.env.VITE_ADMIN_PASSWORD as string | undefined) ?? '';
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const storageBucket = (import.meta.env.VITE_SUPABASE_STORAGE_BUCKET as string | undefined) ?? 'portal-assets';
 
-const supabase =
+const storageClient =
   supabaseUrl && supabaseAnonKey
     ? createClient(supabaseUrl, supabaseAnonKey)
     : null;
 
-export async function loadPortalState(): Promise<PortalBackendState | null> {
-  if (!supabase) return null;
+function portalStateUrl(): string {
+  return `${apiBase}/api/portal-state`;
+}
 
-  const { data, error } = await supabase
-    .from('portal_settings')
-    .select('data')
-    .eq('id', 1)
-    .maybeSingle();
-
-  if (error) {
-    console.error('Supabase load failed:', error);
-    return null;
+async function readApiError(response: Response): Promise<string> {
+  try {
+    const payload = await response.json() as { error?: unknown };
+    if (typeof payload.error === 'string' && payload.error.trim()) return payload.error;
+  } catch {
+    // Fall through to the HTTP status below.
   }
 
-  return (data?.data as PortalBackendState | undefined) ?? null;
+  return `Portal API request failed with status ${response.status}.`;
+}
+
+export async function loadPortalState(): Promise<PortalBackendState | null> {
+  const response = await fetch(portalStateUrl(), {
+    method: 'GET',
+    cache: 'no-store',
+    credentials: 'same-origin',
+  });
+
+  if (!response.ok) throw new Error(await readApiError(response));
+
+  const state = await response.json() as PortalBackendState | null;
+  return state && typeof state === 'object' ? state : null;
 }
 
 export async function savePortalState(state: PortalBackendState): Promise<void> {
-  if (!supabase) {
-    throw new Error('Supabase environment variables are missing.');
-  }
+  const response = await fetch(portalStateUrl(), {
+    method: 'PUT',
+    credentials: 'same-origin',
+    headers: {
+      'content-type': 'application/json',
+      'x-admin-password': adminPassword,
+    },
+    body: JSON.stringify(state),
+  });
 
-  const { error } = await supabase
-    .from('portal_settings')
-    .upsert({
-      id: 1,
-      data: state,
-      updated_at: new Date().toISOString(),
-    });
-
-  if (error) {
-    console.error('Supabase save failed:', error);
-    throw error;
-  }
+  if (!response.ok) throw new Error(await readApiError(response));
 }
 
 function sanitizeFileName(name: string): string {
@@ -71,15 +81,15 @@ export async function uploadPortalAsset(
   file: File,
   pathPrefix: 'transitions' | 'opening' | 'audio',
 ): Promise<string> {
-  if (!supabase) {
-    throw new Error('Supabase environment variables are missing.');
+  if (!storageClient) {
+    throw new Error('Supabase Storage environment variables are missing.');
   }
 
   const ext = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
   const safeBaseName = sanitizeFileName(file.name.replace(/\.[^.]+$/, ''));
   const filePath = `${pathPrefix}/${Date.now()}-${safeBaseName}.${ext}`;
 
-  const { error: uploadError } = await supabase.storage
+  const { error: uploadError } = await storageClient.storage
     .from(storageBucket)
     .upload(filePath, file, {
       cacheControl: '3600',
@@ -88,11 +98,11 @@ export async function uploadPortalAsset(
     });
 
   if (uploadError) {
-    console.error('Supabase upload failed:', uploadError);
-    throw uploadError;
+    console.error('Supabase Storage upload failed:', uploadError);
+    throw new Error(uploadError.message || 'Supabase Storage upload failed.');
   }
 
-  const { data } = supabase.storage
+  const { data } = storageClient.storage
     .from(storageBucket)
     .getPublicUrl(filePath);
 
