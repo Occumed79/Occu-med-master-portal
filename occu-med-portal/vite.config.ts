@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const rawPort = process.env.PORT ?? "5173";
@@ -21,10 +21,30 @@ const attachedAssetsPath =
   assetCandidates.find((candidate) => existsSync(candidate)) ??
   assetCandidates[0];
 
+const adminLoginVideoDirectory = path.resolve(
+  import.meta.dirname,
+  "public",
+  "assets",
+  "admin-login-video",
+);
+
+const adminLoginVideoBase64 = ["part-00.b64", "part-01.b64", "part-02.b64"]
+  .map((fileName) =>
+    readFileSync(path.join(adminLoginVideoDirectory, fileName), "utf8").trim(),
+  )
+  .join("");
+
+if (!adminLoginVideoBase64.startsWith("AAAAIGZ0eXB")) {
+  throw new Error("The embedded Admin login video is missing or invalid.");
+}
+
 const basePath = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
   base: basePath,
+  define: {
+    __ADMIN_LOGIN_VIDEO_BASE64__: JSON.stringify(adminLoginVideoBase64),
+  },
   plugins: [
     react(),
     tailwindcss(),
