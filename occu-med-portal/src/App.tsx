@@ -15,6 +15,13 @@ const queryClient = new QueryClient();
 const DEFAULT_OPENING_VIDEO_URL =
   'https://res.cloudinary.com/dhsvsnnec/video/upload/Portal-Opening_z8nexs.mp4';
 
+const INTRO_BYPASS_PATHS = new Set(['/login', '/admin', '/setup-account']);
+
+function shouldBypassIntro(): boolean {
+  if (typeof window === 'undefined') return false;
+  return INTRO_BYPASS_PATHS.has(window.location.pathname);
+}
+
 function OpeningVideo({ videoUrl, onDone }: { videoUrl: string; onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [needsClick, setNeedsClick] = useState(false);
@@ -80,10 +87,13 @@ function Router() {
 }
 
 function App() {
-  const [introPlayed, setIntroPlayed] = useState(false);
+  const bypassIntro = shouldBypassIntro();
+  const [introPlayed, setIntroPlayed] = useState(bypassIntro);
   const [openingVideoUrl, setOpeningVideoUrl] = useState(DEFAULT_OPENING_VIDEO_URL);
 
   useEffect(() => {
+    if (bypassIntro) return;
+
     let mounted = true;
 
     async function loadOpeningVideo() {
@@ -100,18 +110,16 @@ function App() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [bypassIntro]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {!introPlayed && <OpeningVideo videoUrl={openingVideoUrl} onDone={() => setIntroPlayed(true)} />}
-        {introPlayed && (
-          <div
-            style={{
-              height: '100vh',
-            }}
-          >
+        {!introPlayed && !bypassIntro && (
+          <OpeningVideo videoUrl={openingVideoUrl} onDone={() => setIntroPlayed(true)} />
+        )}
+        {(introPlayed || bypassIntro) && (
+          <div style={{ height: '100vh' }}>
             <WouterRouter>
               <Router />
             </WouterRouter>
