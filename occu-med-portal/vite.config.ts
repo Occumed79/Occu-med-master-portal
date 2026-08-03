@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const rawPort = process.env.PORT ?? "5173";
@@ -32,32 +32,6 @@ const adminLoginVideoDirectory = path.resolve(
   "admin-login-video",
 );
 
-const adminLoginVideoParts = ["part-00.b64", "part-01.b64", "part-02.b64"];
-
-// Each fragment was Base64-encoded separately. Decode each one first, then
-// concatenate the binary bytes. Joining padded Base64 strings before decoding
-// causes Node to stop at the first fragment's padding and produces a partial MP4.
-const adminLoginVideoBytes = Buffer.concat(
-  adminLoginVideoParts.map((fileName) => {
-    const encodedPart = readFileSync(
-      path.join(adminLoginVideoDirectory, fileName),
-      "utf8",
-    ).trim();
-
-    if (!encodedPart) {
-      throw new Error(`Admin login video fragment is empty: ${fileName}`);
-    }
-
-    return Buffer.from(encodedPart, "base64");
-  }),
-);
-
-const adminVideoHeader = adminLoginVideoBytes.subarray(4, 12).toString("ascii");
-
-if (adminLoginVideoBytes.length < 100_000 || !adminVideoHeader.includes("ftyp")) {
-  throw new Error("The embedded Admin login video is missing or invalid.");
-}
-
 const generatedAdminVideoPath = path.resolve(
   projectRoot,
   "public",
@@ -65,15 +39,65 @@ const generatedAdminVideoPath = path.resolve(
   "admin-login-background.mp4",
 );
 
-mkdirSync(path.dirname(generatedAdminVideoPath), { recursive: true });
+const adminLoginVideoParts = ["part-00.b64", "part-01.b64", "part-02.b64"];
 
-const existingAdminVideo = existsSync(generatedAdminVideoPath)
-  ? readFileSync(generatedAdminVideoPath)
-  : null;
-
-if (!existingAdminVideo || !existingAdminVideo.equals(adminLoginVideoBytes)) {
-  writeFileSync(generatedAdminVideoPath, adminLoginVideoBytes);
+function isValidMp4(bytes: Buffer): boolean {
+  if (bytes.length < 100_000) return false;
+  return bytes.subarray(4, 12).toString("ascii").includes("ftyp");
 }
+
+function prepareAdminLoginVideo(): void {
+  try {
+    const encodedParts = adminLoginVideoParts.map((fileName) =>
+      readFileSync(path.join(adminLoginVideoDirectory, fileName), "utf8").trim(),
+    );
+
+    if (encodedParts.some((part) => !part)) {
+      throw new Error("one or more video fragments are empty");
+    }
+
+    // Support both ways the historical fragments may have been produced:
+    // 1) chunks of one continuous Base64 string, or
+    // 2) separately Base64-encoded binary chunks.
+    const candidates = [
+      Buffer.from(encodedParts.join(""), "base64"),
+      Buffer.concat(encodedParts.map((part) => Buffer.from(part, "base64"))),
+    ];
+
+    const adminLoginVideoBytes = candidates.find(isValidMp4);
+
+    if (!adminLoginVideoBytes) {
+      throw new Error("the reconstructed bytes do not contain a valid MP4 header");
+    }
+
+    mkdirSync(path.dirname(generatedAdminVideoPath), { recursive: true });
+
+    const existingAdminVideo = existsSync(generatedAdminVideoPath)
+      ? readFileSync(generatedAdminVideoPath)
+      : null;
+
+    if (!existingAdminVideo || !existingAdminVideo.equals(adminLoginVideoBytes)) {
+      writeFileSync(generatedAdminVideoPath, adminLoginVideoBytes);
+    }
+  } catch (error) {
+    // The Admin background is decorative and must never take the entire portal
+    // offline. Login.tsx already has a visible cosmic fallback when this asset
+    // cannot be prepared.
+    if (existsSync(generatedAdminVideoPath)) {
+      try {
+        const existingBytes = readFileSync(generatedAdminVideoPath);
+        if (!isValidMp4(existingBytes)) unlinkSync(generatedAdminVideoPath);
+      } catch {
+        // Ignore cleanup failures and continue the application build.
+      }
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[admin-login-video] Skipping optional background video: ${message}`);
+  }
+}
+
+prepareAdminLoginVideo();
 
 const basePath = process.env.BASE_PATH ?? "/";
 
