@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { useAuth } from '../hooks/useAuth';
 
-declare const __ADMIN_LOGIN_VIDEO_BASE64__: string;
+const ADMIN_BACKGROUND_SRC = '/assets/admin-login-background.mp4';
 
 function getNextPath(): string {
   if (typeof window === 'undefined') return '/admin';
@@ -14,22 +14,11 @@ function getNextPath(): string {
   return next?.startsWith('/') ? next : '/admin';
 }
 
-function createVideoObjectUrl(base64: string): string {
-  const binary = window.atob(base64);
-  const bytes = new Uint8Array(binary.length);
-
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-
-  return URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
-}
-
 export default function Login() {
   const { user, loginAdmin } = useAuth();
   const [, setLocation] = useLocation();
   const backgroundVideoRef = useRef<HTMLVideoElement | null>(null);
-  const [backgroundVideoUrl, setBackgroundVideoUrl] = useState('');
+  const [videoReady, setVideoReady] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,40 +28,34 @@ export default function Login() {
     if (user) setLocation(getNextPath());
   }, [user, setLocation]);
 
-  useEffect(() => {
-    let objectUrl = '';
-
-    try {
-      objectUrl = createVideoObjectUrl(__ADMIN_LOGIN_VIDEO_BASE64__);
-      setBackgroundVideoUrl(objectUrl);
-    } catch (error) {
-      console.error('Admin login background video could not be decoded:', error);
-    }
-
-    return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, []);
-
-  useEffect(() => {
-    const video = backgroundVideoRef.current;
-    if (!video || !backgroundVideoUrl) return;
-
-    video.defaultPlaybackRate = 0.35;
-    video.playbackRate = 0.35;
-    void video.play().catch(() => undefined);
-  }, [backgroundVideoUrl]);
-
   const startBackgroundVideo = (video: HTMLVideoElement) => {
     video.defaultPlaybackRate = 0.35;
     video.playbackRate = 0.35;
 
-    if (video.currentTime < 0.65 && video.duration > 1) {
-      video.currentTime = 0.65;
+    if (video.currentTime < 0.2 && video.duration > 1) {
+      video.currentTime = 0.2;
     }
 
+    setVideoReady(true);
     void video.play().catch(() => undefined);
   };
+
+  useEffect(() => {
+    const resumeVideo = () => {
+      const video = backgroundVideoRef.current;
+      if (!video) return;
+      video.playbackRate = 0.35;
+      void video.play().catch(() => undefined);
+    };
+
+    document.addEventListener('pointerdown', resumeVideo, { once: true, capture: true });
+    document.addEventListener('keydown', resumeVideo, { once: true, capture: true });
+
+    return () => {
+      document.removeEventListener('pointerdown', resumeVideo, true);
+      document.removeEventListener('keydown', resumeVideo, true);
+    };
+  }, []);
 
   const handleAdminLogin = (event: React.FormEvent) => {
     event.preventDefault();
@@ -91,28 +74,32 @@ export default function Login() {
   if (user) return null;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,#7c2d12_0%,#1c0a05_38%,#000_78%)] p-4 text-white">
-      {backgroundVideoUrl && (
-        <video
-          ref={backgroundVideoRef}
-          src={backgroundVideoUrl}
-          className="absolute inset-0 z-0 h-full w-full object-cover opacity-100"
-          style={{ filter: 'saturate(1.28) contrast(1.08) brightness(1.15)' }}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          aria-hidden="true"
-          onLoadedMetadata={(event) => startBackgroundVideo(event.currentTarget)}
-          onCanPlay={(event) => startBackgroundVideo(event.currentTarget)}
-        />
-      )}
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black p-4 text-white">
+      <video
+        ref={backgroundVideoRef}
+        src={ADMIN_BACKGROUND_SRC}
+        className={`absolute inset-0 z-0 h-full w-full scale-[1.08] object-cover transition-opacity duration-700 ${videoReady ? 'opacity-100' : 'opacity-0'}`}
+        style={{ filter: 'saturate(1.18) contrast(1.04) brightness(1.12)' }}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+        onLoadedMetadata={(event) => startBackgroundVideo(event.currentTarget)}
+        onCanPlay={(event) => startBackgroundVideo(event.currentTarget)}
+        onPlaying={() => setVideoReady(true)}
+        onError={(event) => {
+          console.error('Admin login background video failed to load:', event.currentTarget.error);
+          setVideoReady(false);
+        }}
+      />
 
-      <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_50%_48%,transparent_0%,rgba(0,0,0,0.03)_52%,rgba(0,0,0,0.35)_100%)]" />
-      <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/0 via-transparent to-black/20" />
+      <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_50%_48%,transparent_0%,rgba(0,0,0,0.05)_55%,rgba(0,0,0,0.44)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/5 via-transparent to-black/30" />
+      {!videoReady && <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,#7c2d12_0%,#1c0a05_38%,#000_78%)]" />}
 
-      <Card className="relative z-20 w-full max-w-md overflow-hidden border border-orange-100/30 bg-black/28 shadow-[0_30px_100px_rgba(0,0,0,0.55),0_0_55px_rgba(255,132,45,0.18)] backdrop-blur-xl">
+      <Card className="relative z-20 w-full max-w-md overflow-hidden border border-orange-100/30 bg-black/35 shadow-[0_30px_100px_rgba(0,0,0,0.55),0_0_55px_rgba(255,132,45,0.18)] backdrop-blur-lg">
         <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-orange-100/75 to-transparent" />
         <CardHeader className="space-y-3 pb-5 pt-8">
           <CardTitle className="text-center text-2xl text-white">Admin Command Center</CardTitle>
