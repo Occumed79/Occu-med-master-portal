@@ -59,12 +59,17 @@ function prepareAdminLoginVideo(): void {
     // Support both ways the historical fragments may have been produced:
     // 1) chunks of one continuous Base64 string, or
     // 2) separately Base64-encoded binary chunks.
+    //
+    // A truncated first fragment can still contain a valid MP4 header, so do
+    // not use Array.find(). Select the largest valid reconstruction instead.
     const candidates = [
       Buffer.from(encodedParts.join(""), "base64"),
       Buffer.concat(encodedParts.map((part) => Buffer.from(part, "base64"))),
     ];
 
-    const adminLoginVideoBytes = candidates.find(isValidMp4);
+    const adminLoginVideoBytes = candidates
+      .filter(isValidMp4)
+      .sort((left, right) => right.length - left.length)[0];
 
     if (!adminLoginVideoBytes) {
       throw new Error("the reconstructed bytes do not contain a valid MP4 header");
@@ -79,6 +84,11 @@ function prepareAdminLoginVideo(): void {
     if (!existingAdminVideo || !existingAdminVideo.equals(adminLoginVideoBytes)) {
       writeFileSync(generatedAdminVideoPath, adminLoginVideoBytes);
     }
+
+    console.info(
+      `[admin-login-video] Prepared ${adminLoginVideoBytes.length.toLocaleString()} bytes ` +
+        `(candidate sizes: ${candidates.map((candidate) => candidate.length.toLocaleString()).join(", ")}).`,
+    );
   } catch (error) {
     // The Admin background is decorative and must never take the entire portal
     // offline. Login.tsx already has a visible cosmic fallback when this asset
