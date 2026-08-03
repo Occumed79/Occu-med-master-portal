@@ -12,9 +12,13 @@ if (!Number.isFinite(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+// pnpm runs this package's build script with the portal package as cwd.
+// Using cwd avoids Vite's temporary bundled-config directory.
+const projectRoot = process.cwd();
+
 const assetCandidates = [
-  path.resolve(import.meta.dirname, "..", "attached_assets"),
-  path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
+  path.resolve(projectRoot, "..", "attached_assets"),
+  path.resolve(projectRoot, "..", "..", "attached_assets"),
 ];
 
 const attachedAssetsPath =
@@ -22,19 +26,32 @@ const attachedAssetsPath =
   assetCandidates[0];
 
 const adminLoginVideoDirectory = path.resolve(
-  import.meta.dirname,
+  projectRoot,
   "public",
   "assets",
   "admin-login-video",
 );
 
-const adminLoginVideoBase64 = ["part-00.b64", "part-01.b64", "part-02.b64"]
-  .map((fileName) =>
-    readFileSync(path.join(adminLoginVideoDirectory, fileName), "utf8").trim(),
-  )
-  .join("");
+const adminLoginVideoParts = ["part-00.b64", "part-01.b64", "part-02.b64"];
 
-const adminLoginVideoBytes = Buffer.from(adminLoginVideoBase64, "base64");
+// Each fragment was Base64-encoded separately. Decode each one first, then
+// concatenate the binary bytes. Joining padded Base64 strings before decoding
+// causes Node to stop at the first fragment's padding and produces a partial MP4.
+const adminLoginVideoBytes = Buffer.concat(
+  adminLoginVideoParts.map((fileName) => {
+    const encodedPart = readFileSync(
+      path.join(adminLoginVideoDirectory, fileName),
+      "utf8",
+    ).trim();
+
+    if (!encodedPart) {
+      throw new Error(`Admin login video fragment is empty: ${fileName}`);
+    }
+
+    return Buffer.from(encodedPart, "base64");
+  }),
+);
+
 const adminVideoHeader = adminLoginVideoBytes.subarray(4, 12).toString("ascii");
 
 if (adminLoginVideoBytes.length < 100_000 || !adminVideoHeader.includes("ftyp")) {
@@ -42,7 +59,7 @@ if (adminLoginVideoBytes.length < 100_000 || !adminVideoHeader.includes("ftyp"))
 }
 
 const generatedAdminVideoPath = path.resolve(
-  import.meta.dirname,
+  projectRoot,
   "public",
   "assets",
   "admin-login-background.mp4",
@@ -71,7 +88,7 @@ export default defineConfig({
       ? [
           await import("@replit/vite-plugin-cartographer").then((m) =>
             m.cartographer({
-              root: path.resolve(import.meta.dirname, ".."),
+              root: path.resolve(projectRoot, ".."),
             }),
           ),
           await import("@replit/vite-plugin-dev-banner").then((m) =>
@@ -82,14 +99,14 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "src"),
+      "@": path.resolve(projectRoot, "src"),
       "@assets": attachedAssetsPath,
     },
     dedupe: ["react", "react-dom"],
   },
-  root: path.resolve(import.meta.dirname),
+  root: projectRoot,
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: path.resolve(projectRoot, "dist/public"),
     emptyOutDir: true,
   },
   server: {
