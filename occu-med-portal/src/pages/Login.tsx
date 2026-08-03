@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -34,9 +34,9 @@ function makeStars(count: number, seed: number, palette: string[]): Star[] {
     id,
     left: random() * 100,
     top: random() * 100,
-    size: 0.8 + random() * 2.4,
-    opacity: 0.28 + random() * 0.7,
-    duration: 2.2 + random() * 5.4,
+    size: 0.8 + random() * 2.5,
+    opacity: 0.3 + random() * 0.7,
+    duration: 2.4 + random() * 5.6,
     delay: random() * -8,
     color: palette[Math.floor(random() * palette.length)] ?? '#ffffff',
   }));
@@ -69,7 +69,7 @@ function StarLayer({ stars, className }: { stars: Star[]; className: string }) {
 }
 
 export default function Login() {
-  const { user, loginAdmin } = useAuth();
+  const { loginAdmin } = useAuth();
   const [, setLocation] = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -77,21 +77,17 @@ export default function Login() {
   const [message, setMessage] = useState('');
 
   const distantStars = useMemo(
-    () => makeStars(110, 9147, ['#ffffff', '#dbeafe', '#bfdbfe']),
+    () => makeStars(120, 9147, ['#ffffff', '#dbeafe', '#bfdbfe']),
     [],
   );
   const middleStars = useMemo(
-    () => makeStars(72, 27183, ['#ffffff', '#93c5fd', '#fef3c7']),
+    () => makeStars(78, 27183, ['#ffffff', '#93c5fd', '#fef3c7']),
     [],
   );
   const nearStars = useMemo(
-    () => makeStars(34, 80411, ['#f8fafc', '#60a5fa', '#fde68a']),
+    () => makeStars(38, 80411, ['#f8fafc', '#60a5fa', '#fde68a']),
     [],
   );
-
-  useEffect(() => {
-    if (user) setLocation(getNextPath());
-  }, [user, setLocation]);
 
   const handleAdminLogin = (event: FormEvent) => {
     event.preventDefault();
@@ -107,8 +103,6 @@ export default function Login() {
     setLoading(false);
   };
 
-  if (user) return null;
-
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#02040d] p-4 text-white">
       <style>{`
@@ -117,34 +111,34 @@ export default function Login() {
           inset: 0;
           overflow: hidden;
           background:
-            radial-gradient(circle at 19% 24%, rgba(30, 64, 175, 0.18), transparent 28%),
-            radial-gradient(circle at 78% 28%, rgba(217, 119, 6, 0.11), transparent 24%),
-            radial-gradient(circle at 70% 79%, rgba(37, 99, 235, 0.16), transparent 30%),
-            radial-gradient(circle at 50% 48%, #081127 0%, #030716 46%, #010208 78%, #000 100%);
+            radial-gradient(circle at 18% 26%, rgba(30, 64, 175, 0.22), transparent 30%),
+            radial-gradient(circle at 81% 24%, rgba(217, 119, 6, 0.14), transparent 25%),
+            radial-gradient(circle at 72% 80%, rgba(37, 99, 235, 0.2), transparent 31%),
+            radial-gradient(circle at 50% 48%, #09132b 0%, #040817 46%, #01030b 80%, #000 100%);
         }
 
         .admin-nebula {
           position: absolute;
-          width: 55vw;
-          height: 55vw;
+          width: 58vw;
+          height: 58vw;
           border-radius: 999px;
-          filter: blur(90px);
-          opacity: 0.18;
+          filter: blur(92px);
+          opacity: 0.2;
           mix-blend-mode: screen;
-          animation: adminNebulaFloat 22s ease-in-out infinite alternate;
+          animation: adminNebulaFloat 24s ease-in-out infinite alternate;
         }
 
         .admin-nebula-blue {
-          left: -18vw;
-          top: 18vh;
-          background: radial-gradient(circle, rgba(29, 78, 216, 0.8), rgba(30, 64, 175, 0.15) 42%, transparent 70%);
+          left: -20vw;
+          top: 16vh;
+          background: radial-gradient(circle, rgba(29, 78, 216, 0.9), rgba(30, 64, 175, 0.16) 43%, transparent 72%);
         }
 
         .admin-nebula-gold {
-          right: -20vw;
-          top: -12vh;
-          background: radial-gradient(circle, rgba(245, 158, 11, 0.52), rgba(180, 83, 9, 0.12) 44%, transparent 72%);
-          animation-delay: -9s;
+          right: -21vw;
+          top: -13vh;
+          background: radial-gradient(circle, rgba(245, 158, 11, 0.58), rgba(180, 83, 9, 0.14) 45%, transparent 73%);
+          animation-delay: -10s;
         }
 
         .admin-star-layer {
@@ -154,17 +148,9 @@ export default function Login() {
           will-change: transform;
         }
 
-        .admin-star-layer-far {
-          animation: adminDriftFar 40s ease-in-out infinite alternate;
-        }
-
-        .admin-star-layer-mid {
-          animation: adminDriftMid 28s ease-in-out infinite alternate;
-        }
-
-        .admin-star-layer-near {
-          animation: adminDriftNear 20s ease-in-out infinite alternate;
-        }
+        .admin-star-layer-far { animation: adminDriftFar 42s ease-in-out infinite alternate; }
+        .admin-star-layer-mid { animation: adminDriftMid 30s ease-in-out infinite alternate; }
+        .admin-star-layer-near { animation: adminDriftNear 21s ease-in-out infinite alternate; }
 
         .admin-star {
           position: absolute;
@@ -184,8 +170,8 @@ export default function Login() {
           background: var(--star-color);
           box-shadow:
             0 0 10px var(--star-color),
-            0 0 22px var(--star-color),
-            0 0 42px var(--star-glow);
+            0 0 24px var(--star-color),
+            0 0 46px var(--star-glow);
           animation: adminBurstPulse var(--pulse-speed) ease-in-out infinite;
         }
 
@@ -195,54 +181,54 @@ export default function Login() {
           position: absolute;
           left: 50%;
           top: 50%;
-          background: linear-gradient(to right, transparent, var(--star-color), transparent);
           transform: translate(-50%, -50%);
-          opacity: 0.8;
+          opacity: 0.86;
         }
 
         .admin-starburst::before {
-          width: 90px;
+          width: 96px;
           height: 1px;
+          background: linear-gradient(to right, transparent, var(--star-color), transparent);
         }
 
         .admin-starburst::after {
           width: 1px;
-          height: 90px;
+          height: 96px;
           background: linear-gradient(to bottom, transparent, var(--star-color), transparent);
         }
 
         .admin-starburst-blue-one {
-          left: 22%;
-          top: 31%;
+          left: 21%;
+          top: 30%;
           --star-color: #dbeafe;
-          --star-glow: rgba(37, 99, 235, 0.85);
-          --pulse-speed: 4.6s;
+          --star-glow: rgba(37, 99, 235, 0.9);
+          --pulse-speed: 4.7s;
         }
 
         .admin-starburst-blue-two {
-          right: 16%;
-          bottom: 22%;
+          right: 15%;
+          bottom: 21%;
           --star-color: #eff6ff;
-          --star-glow: rgba(59, 130, 246, 0.9);
-          --pulse-speed: 5.4s;
+          --star-glow: rgba(59, 130, 246, 0.95);
+          --pulse-speed: 5.5s;
           animation-delay: -2.2s;
         }
 
         .admin-starburst-gold-one {
-          right: 20%;
-          top: 24%;
+          right: 19%;
+          top: 23%;
           --star-color: #fff7d6;
-          --star-glow: rgba(245, 158, 11, 0.72);
-          --pulse-speed: 6.2s;
-          animation-delay: -1.7s;
+          --star-glow: rgba(245, 158, 11, 0.78);
+          --pulse-speed: 6.1s;
+          animation-delay: -1.8s;
         }
 
         .admin-starburst-gold-two {
-          left: 12%;
-          bottom: 18%;
+          left: 11%;
+          bottom: 17%;
           --star-color: #fef3c7;
-          --star-glow: rgba(217, 119, 6, 0.68);
-          --pulse-speed: 5.8s;
+          --star-glow: rgba(217, 119, 6, 0.72);
+          --pulse-speed: 5.9s;
           animation-delay: -3.1s;
         }
 
@@ -299,14 +285,14 @@ export default function Login() {
         <span className="admin-starburst admin-starburst-gold-two" />
       </div>
 
-      <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_50%_48%,transparent_0%,rgba(0,0,0,0.05)_54%,rgba(0,0,0,0.42)_100%)]" />
+      <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_50%_48%,transparent_0%,rgba(0,0,0,0.04)_54%,rgba(0,0,0,0.4)_100%)]" />
       <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/5 via-transparent to-black/35" />
 
-      <Card className="relative z-20 w-full max-w-md overflow-hidden border border-blue-100/25 bg-[#030817]/58 shadow-[0_30px_100px_rgba(0,0,0,0.62),0_0_58px_rgba(59,130,246,0.14),0_0_28px_rgba(245,158,11,0.08)] backdrop-blur-xl">
+      <Card className="relative z-20 w-full max-w-md overflow-hidden border border-blue-100/25 bg-[#030817]/60 shadow-[0_30px_100px_rgba(0,0,0,0.62),0_0_58px_rgba(59,130,246,0.14),0_0_28px_rgba(245,158,11,0.08)] backdrop-blur-xl">
         <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-blue-100/75 to-transparent" />
         <CardHeader className="space-y-3 pb-5 pt-8">
           <CardTitle className="text-center text-2xl text-white">Admin Command Center</CardTitle>
-          <CardDescription className="mx-auto max-w-sm text-center leading-relaxed text-white/72">
+          <CardDescription className="mx-auto max-w-sm text-center leading-relaxed text-white/75">
             Enter the administrator credentials to manage portal access and launch settings.
           </CardDescription>
         </CardHeader>
@@ -319,7 +305,7 @@ export default function Login() {
               placeholder="Admin Email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="h-12 border-white/18 bg-black/38 text-white shadow-inner placeholder:text-white/46 focus-visible:border-blue-200/65 focus-visible:ring-blue-200/20"
+              className="h-12 border-white/20 bg-black/40 text-white shadow-inner placeholder:text-white/50 focus-visible:border-blue-200/65 focus-visible:ring-blue-200/20"
               required
             />
             <Input
@@ -328,7 +314,7 @@ export default function Login() {
               placeholder="Admin Password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="h-12 border-white/18 bg-black/38 text-white shadow-inner placeholder:text-white/46 focus-visible:border-blue-200/65 focus-visible:ring-blue-200/20"
+              className="h-12 border-white/20 bg-black/40 text-white shadow-inner placeholder:text-white/50 focus-visible:border-blue-200/65 focus-visible:ring-blue-200/20"
               required
             />
             {message && (
