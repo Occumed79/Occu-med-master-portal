@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const rawPort = process.env.PORT ?? "5173";
@@ -36,6 +36,45 @@ const adminLoginVideoBase64 = ["part-00.b64", "part-01.b64", "part-02.b64"]
 
 if (!adminLoginVideoBase64.startsWith("AAAAIGZ0eXB")) {
   throw new Error("The embedded Admin login video is missing or invalid.");
+}
+
+const ambientAudioDirectory = path.resolve(
+  import.meta.dirname,
+  "assets",
+  "portal-ambient-audio",
+);
+
+const ambientAudioBase64 = Array.from({ length: 4 }, (_, index) =>
+  `part-${String(index).padStart(2, "0")}.b64`,
+)
+  .map((fileName) =>
+    readFileSync(path.join(ambientAudioDirectory, fileName), "utf8").trim(),
+  )
+  .join("");
+
+const ambientAudioBytes = Buffer.from(ambientAudioBase64, "base64");
+const hasId3Header = ambientAudioBytes.subarray(0, 3).toString("ascii") === "ID3";
+const hasMp3FrameHeader = ambientAudioBytes[0] === 0xff && (ambientAudioBytes[1] & 0xe0) === 0xe0;
+
+if (ambientAudioBytes.length < 25_000 || (!hasId3Header && !hasMp3FrameHeader)) {
+  throw new Error("The embedded portal ambient soundtrack is missing or invalid.");
+}
+
+const generatedAmbientAudioPath = path.resolve(
+  import.meta.dirname,
+  "public",
+  "assets",
+  "portal-ambient-soundtrack.mp3",
+);
+
+mkdirSync(path.dirname(generatedAmbientAudioPath), { recursive: true });
+
+const existingAmbientAudio = existsSync(generatedAmbientAudioPath)
+  ? readFileSync(generatedAmbientAudioPath)
+  : null;
+
+if (!existingAmbientAudio || !existingAmbientAudio.equals(ambientAudioBytes)) {
+  writeFileSync(generatedAmbientAudioPath, ambientAudioBytes);
 }
 
 const basePath = process.env.BASE_PATH ?? "/";

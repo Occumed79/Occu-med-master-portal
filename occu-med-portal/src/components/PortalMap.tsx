@@ -16,6 +16,131 @@ type LaunchState = {
 };
 
 const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
+const AMBIENT_AUDIO_SRC = '/assets/portal-ambient-soundtrack.mp3';
+const AMBIENT_VOLUME = 0.035;
+const DUCKED_AMBIENT_VOLUME = 0.008;
+const ARTWORK_LOOP_START_SECONDS = 0.08;
+const ARTWORK_CROSSFADE_SECONDS = 0.9;
+const ARTWORK_CROSSFADE_MS = 650;
+
+function SeamlessArtworkLoop() {
+  const firstVideoRef = useRef<HTMLVideoElement | null>(null);
+  const secondVideoRef = useRef<HTMLVideoElement | null>(null);
+  const activeIndexRef = useRef<0 | 1>(0);
+  const switchingRef = useRef(false);
+  const [activeIndex, setActiveIndex] = useState<0 | 1>(0);
+
+  useEffect(() => {
+    const firstVideo = firstVideoRef.current;
+    const secondVideo = secondVideoRef.current;
+    if (!firstVideo || !secondVideo) return;
+
+    const videos = [firstVideo, secondVideo] as const;
+    let cancelled = false;
+    let animationFrame = 0;
+    let crossfadeTimer = 0;
+
+    const resetToLoopStart = (video: HTMLVideoElement) => {
+      if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+      video.currentTime = Math.min(ARTWORK_LOOP_START_SECONDS, Math.max(0, video.duration - 0.05));
+    };
+
+    const switchLayers = async () => {
+      if (cancelled || switchingRef.current) return;
+      switchingRef.current = true;
+
+      const oldIndex = activeIndexRef.current;
+      const nextIndex = (oldIndex === 0 ? 1 : 0) as 0 | 1;
+      const currentVideo = videos[oldIndex];
+      const nextVideo = videos[nextIndex];
+
+      resetToLoopStart(nextVideo);
+
+      try {
+        await nextVideo.play();
+        if (cancelled) return;
+
+        activeIndexRef.current = nextIndex;
+        setActiveIndex(nextIndex);
+
+        crossfadeTimer = window.setTimeout(() => {
+          currentVideo.pause();
+          resetToLoopStart(currentVideo);
+          switchingRef.current = false;
+        }, ARTWORK_CROSSFADE_MS);
+      } catch {
+        resetToLoopStart(currentVideo);
+        void currentVideo.play().catch(() => undefined);
+        switchingRef.current = false;
+      }
+    };
+
+    const monitorLoop = () => {
+      const currentVideo = videos[activeIndexRef.current];
+
+      if (Number.isFinite(currentVideo.duration) && currentVideo.duration > 0) {
+        const leadTime = Math.min(ARTWORK_CROSSFADE_SECONDS, currentVideo.duration * 0.18);
+        if (currentVideo.duration - currentVideo.currentTime <= leadTime) {
+          void switchLayers();
+        }
+      }
+
+      animationFrame = window.requestAnimationFrame(monitorLoop);
+    };
+
+    const handleUnexpectedEnd = () => {
+      void switchLayers();
+    };
+
+    videos.forEach((video) => video.addEventListener('ended', handleUnexpectedEnd));
+    resetToLoopStart(firstVideo);
+    void firstVideo.play().catch(() => undefined);
+    animationFrame = window.requestAnimationFrame(monitorLoop);
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(animationFrame);
+      window.clearTimeout(crossfadeTimer);
+      videos.forEach((video) => {
+        video.removeEventListener('ended', handleUnexpectedEnd);
+        video.pause();
+      });
+    };
+  }, []);
+
+  const sharedVideoStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'fill',
+    pointerEvents: 'none',
+    transform: 'translateZ(0)',
+    backfaceVisibility: 'hidden',
+    transition: `opacity ${ARTWORK_CROSSFADE_MS}ms ease-in-out`,
+  };
+
+  return (
+    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+      <video
+        ref={firstVideoRef}
+        src={ARTWORK_SRC}
+        muted
+        playsInline
+        preload="auto"
+        style={{ ...sharedVideoStyle, opacity: activeIndex === 0 ? 1 : 0 }}
+      />
+      <video
+        ref={secondVideoRef}
+        src={ARTWORK_SRC}
+        muted
+        playsInline
+        preload="auto"
+        style={{ ...sharedVideoStyle, opacity: activeIndex === 1 ? 1 : 0 }}
+      />
+    </div>
+  );
+}
 
 function buildEmpty(): PlanetSettings {
   return Object.fromEntries(
@@ -58,6 +183,7 @@ export default function PortalMap() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const launchVideoRef = useRef<HTMLVideoElement | null>(null);
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -94,6 +220,49 @@ export default function PortalMap() {
       mounted = false;
     };
   }, [authLoading]);
+
+  useEffect(() => {
+    const audio = ambientAudioRef.current;
+    if (!audio) return;
+
+    let hasStarted = false;
+    audio.volume = AMBIENT_VOLUME;
+
+    function removeGestureListeners() {
+      document.removeEventListener('pointerdown', startFromGesture, true);
+      document.removeEventListener('keydown', startFromGesture, true);
+    }
+
+    async function tryStart() {
+      if (hasStarted) return;
+      try {
+        await audio.play();
+        hasStarted = true;
+        removeGestureListeners();
+      } catch {
+        // Audible autoplay is commonly blocked until the first user interaction.
+      }
+    }
+
+    function startFromGesture() {
+      void tryStart();
+    }
+
+    document.addEventListener('pointerdown', startFromGesture, true);
+    document.addEventListener('keydown', startFromGesture, true);
+    void tryStart();
+
+    return () => {
+      removeGestureListeners();
+      audio.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = ambientAudioRef.current;
+    if (!audio) return;
+    audio.volume = launch && !launch.videoOver ? DUCKED_AMBIENT_VOLUME : AMBIENT_VOLUME;
+  }, [launch]);
 
   const openPortal = (planet: PortalDef) => {
     const conf = settings[planet.id as PortalPermissionKey];
@@ -215,25 +384,54 @@ export default function PortalMap() {
 
   return (
     <div className="portal-artwork-scene">
-      <video src={ARTWORK_SRC} className="portal-artwork" autoPlay muted loop playsInline preload="auto" />
+      <audio ref={ambientAudioRef} src={AMBIENT_AUDIO_SRC} loop preload="auto" aria-hidden="true" />
 
-      {PORTALS.map((planet) => (
-        <motion.button
-          key={planet.id}
-          className="planet-hotspot"
-          style={{
-            left: `${planet.x}%`,
-            top: `${planet.y}%`,
-            width: `${planet.size}vmin`,
-            height: `${planet.size}vmin`,
-          }}
-          whileHover={{ scale: 1.01 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-          onClick={() => handlePlanetClick(planet)}
-          aria-label={planet.label}
-          title={planet.label}
-        />
-      ))}
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: 'max(100vw, 177.7778vh)',
+          height: 'max(100vh, 56.25vw)',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1,
+        }}
+      >
+        <SeamlessArtworkLoop />
+
+        {PORTALS.map((planet) => {
+          const hitWidth = `max(${(planet.size * 0.72).toFixed(2)}%, 72px)`;
+          const hitHeight = `max(${(planet.size * 1.28).toFixed(2)}%, 72px)`;
+
+          return (
+            <div
+              key={planet.id}
+              style={{
+                position: 'absolute',
+                left: `${planet.x}%`,
+                top: `${planet.y}%`,
+                width: hitWidth,
+                height: hitHeight,
+                transform: 'translate(-50%, -50%)',
+                zIndex: 20,
+                pointerEvents: 'auto',
+              }}
+            >
+              <motion.button
+                type="button"
+                className="block h-full w-full rounded-full border-0 bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                style={{ cursor: 'pointer', touchAction: 'manipulation', pointerEvents: 'auto' }}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                onClick={() => handlePlanetClick(planet)}
+                aria-label={`Open ${planet.label}`}
+                title={planet.label}
+              />
+            </div>
+          );
+        })}
+      </div>
 
       {(notice || isLoadingConfig) && (
         <div className="portal-status-message">
