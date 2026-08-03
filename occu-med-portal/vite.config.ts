@@ -34,56 +34,34 @@ const adminLoginVideoBase64 = ["part-00.b64", "part-01.b64", "part-02.b64"]
   )
   .join("");
 
-if (!adminLoginVideoBase64.startsWith("AAAAIGZ0eXB")) {
+const adminLoginVideoBytes = Buffer.from(adminLoginVideoBase64, "base64");
+const adminVideoHeader = adminLoginVideoBytes.subarray(4, 12).toString("ascii");
+
+if (adminLoginVideoBytes.length < 100_000 || !adminVideoHeader.includes("ftyp")) {
   throw new Error("The embedded Admin login video is missing or invalid.");
 }
 
-const ambientAudioDirectory = path.resolve(
-  import.meta.dirname,
-  "assets",
-  "portal-ambient-audio",
-);
-
-const ambientAudioBase64 = Array.from({ length: 4 }, (_, index) =>
-  `part-${String(index).padStart(2, "0")}.b64`,
-)
-  .map((fileName) =>
-    readFileSync(path.join(ambientAudioDirectory, fileName), "utf8").trim(),
-  )
-  .join("");
-
-const ambientAudioBytes = Buffer.from(ambientAudioBase64, "base64");
-const hasId3Header = ambientAudioBytes.subarray(0, 3).toString("ascii") === "ID3";
-const hasMp3FrameHeader = ambientAudioBytes[0] === 0xff && (ambientAudioBytes[1] & 0xe0) === 0xe0;
-
-if (ambientAudioBytes.length < 25_000 || (!hasId3Header && !hasMp3FrameHeader)) {
-  throw new Error("The embedded portal ambient soundtrack is missing or invalid.");
-}
-
-const generatedAmbientAudioPath = path.resolve(
+const generatedAdminVideoPath = path.resolve(
   import.meta.dirname,
   "public",
   "assets",
-  "portal-ambient-soundtrack.mp3",
+  "admin-login-background.mp4",
 );
 
-mkdirSync(path.dirname(generatedAmbientAudioPath), { recursive: true });
+mkdirSync(path.dirname(generatedAdminVideoPath), { recursive: true });
 
-const existingAmbientAudio = existsSync(generatedAmbientAudioPath)
-  ? readFileSync(generatedAmbientAudioPath)
+const existingAdminVideo = existsSync(generatedAdminVideoPath)
+  ? readFileSync(generatedAdminVideoPath)
   : null;
 
-if (!existingAmbientAudio || !existingAmbientAudio.equals(ambientAudioBytes)) {
-  writeFileSync(generatedAmbientAudioPath, ambientAudioBytes);
+if (!existingAdminVideo || !existingAdminVideo.equals(adminLoginVideoBytes)) {
+  writeFileSync(generatedAdminVideoPath, adminLoginVideoBytes);
 }
 
 const basePath = process.env.BASE_PATH ?? "/";
 
 export default defineConfig({
   base: basePath,
-  define: {
-    __ADMIN_LOGIN_VIDEO_BASE64__: JSON.stringify(adminLoginVideoBase64),
-  },
   plugins: [
     react(),
     tailwindcss(),
