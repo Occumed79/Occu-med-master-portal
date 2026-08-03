@@ -106,18 +106,17 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {!introPlayed && <OpeningVideo videoUrl={openingVideoUrl} onDone={() => setIntroPlayed(true)} />}
-        <div
-          style={{
-            opacity: introPlayed ? 1 : 0,
-            pointerEvents: introPlayed ? 'all' : 'none',
-            transition: 'opacity 0.8s ease',
-            height: '100vh',
-          }}
-        >
-          <WouterRouter>
-            <Router />
-          </WouterRouter>
-        </div>
+        {introPlayed && (
+          <div
+            style={{
+              height: '100vh',
+            }}
+          >
+            <WouterRouter>
+              <Router />
+            </WouterRouter>
+          </div>
+        )}
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
