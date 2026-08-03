@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 type LaunchState = {
   targetUrl: string;
   videoUrl: string | null;
+  audioUrl: string | null;
   label: string;
   glow: string;
   videoOver: boolean;
@@ -18,7 +19,28 @@ const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
 
 function buildEmpty(): PlanetSettings {
   return Object.fromEntries(
-    PORTALS.map((portal) => [portal.id, { url: portal.url, videoUrl: portal.videoUrl }]),
+    PORTALS.map((portal) => [
+      portal.id,
+      {
+        url: portal.url,
+        videoUrl: portal.videoUrl,
+        audioUrl: '',
+      },
+    ]),
+  ) as PlanetSettings;
+}
+
+function mergeSettings(savedSettings?: Partial<PlanetSettings>): PlanetSettings {
+  const defaults = buildEmpty();
+
+  return Object.fromEntries(
+    PORTALS.map((portal) => [
+      portal.id,
+      {
+        ...defaults[portal.id],
+        ...(savedSettings?.[portal.id] ?? {}),
+      },
+    ]),
   ) as PlanetSettings;
 }
 
@@ -26,7 +48,7 @@ export default function PortalMap() {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
   const [settings, setSettings] = useState<PlanetSettings>(() => buildEmpty());
-  const [audioUrl, setAudioUrl] = useState('');
+  const [fallbackAudioUrl, setFallbackAudioUrl] = useState('');
   const [launch, setLaunch] = useState<LaunchState | null>(null);
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [accessPlanet, setAccessPlanet] = useState<PortalDef | null>(null);
@@ -50,16 +72,13 @@ export default function PortalMap() {
         if (!mounted) return;
 
         if (backendState?.settings) {
-          setSettings({ ...buildEmpty(), ...backendState.settings });
+          setSettings(mergeSettings(backendState.settings));
         } else {
           setNotice('Portal links are not configured yet. An admin needs to save them in the Admin Command Center.');
         }
 
         setUsers(Array.isArray(backendState?.users) ? backendState.users : []);
-
-        if (typeof backendState?.audioUrl === 'string') {
-          setAudioUrl(backendState.audioUrl);
-        }
+        setFallbackAudioUrl(typeof backendState?.audioUrl === 'string' ? backendState.audioUrl : '');
       } catch (error: unknown) {
         if (!mounted) return;
         const message = error instanceof Error ? error.message : 'Unknown backend error';
@@ -86,6 +105,8 @@ export default function PortalMap() {
     }
 
     const transitionVideo = conf.videoUrl?.trim() || null;
+    const transitionAudio = conf.audioUrl?.trim() || fallbackAudioUrl.trim() || null;
+
     if (!transitionVideo) {
       window.open(url, '_blank', 'noopener,noreferrer');
       return;
@@ -94,6 +115,7 @@ export default function PortalMap() {
     setLaunch({
       targetUrl: url,
       videoUrl: transitionVideo,
+      audioUrl: transitionAudio,
       label: planet.label,
       glow: planet.glow,
       videoOver: false,
@@ -151,25 +173,23 @@ export default function PortalMap() {
     setAccessPlanet(planet);
   };
 
+  const stopLaunchAudio = () => {
+    if (!launchAudioRef.current) return;
+    launchAudioRef.current.pause();
+    launchAudioRef.current.currentTime = 0;
+  };
+
   const handleVideoEnd = () => {
-    if (launchAudioRef.current) {
-      launchAudioRef.current.pause();
-      launchAudioRef.current.currentTime = 0;
-    }
-    setLaunch((prev: LaunchState | null) => {
-      if (prev) {
-        window.open(prev.targetUrl, '_blank', 'noopener,noreferrer');
-        return { ...prev, videoOver: true };
-      }
-      return null;
+    stopLaunchAudio();
+    setLaunch((previousLaunch) => {
+      if (!previousLaunch) return null;
+      window.open(previousLaunch.targetUrl, '_blank', 'noopener,noreferrer');
+      return { ...previousLaunch, videoOver: true };
     });
   };
 
   const handleLaunchClose = () => {
-    if (launchAudioRef.current) {
-      launchAudioRef.current.pause();
-      launchAudioRef.current.currentTime = 0;
-    }
+    stopLaunchAudio();
     setLaunch(null);
   };
 
@@ -249,10 +269,16 @@ export default function PortalMap() {
               />
             </div>
             <div className="mt-5 flex gap-3">
-              <button type="submit" className="flex-1 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-cyan-100">Open Portal</button>
+              <button type="submit" className="flex-1 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-cyan-100">
+                Open Portal
+              </button>
               <button
                 type="button"
-                onClick={() => { setAccessPlanet(null); setAccessUsername(''); setAccessCode(''); }}
+                onClick={() => {
+                  setAccessPlanet(null);
+                  setAccessUsername('');
+                  setAccessCode('');
+                }}
                 className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-white/75 hover:bg-white/10"
               >
                 Cancel
@@ -276,7 +302,7 @@ export default function PortalMap() {
                   className="portal-launch-video"
                 />
               </div>
-              {audioUrl && <audio ref={launchAudioRef} src={audioUrl} autoPlay />}
+              {launch.audioUrl && <audio ref={launchAudioRef} src={launch.audioUrl} autoPlay />}
             </div>
           )}
           <button onClick={launch.videoOver ? handleLaunchClose : handleVideoEnd} className="portal-close-button">

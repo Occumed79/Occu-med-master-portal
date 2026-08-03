@@ -5,6 +5,7 @@ import type { PortalManagedUser } from './accessControl';
 export type PlanetSetting = {
   url: string;
   videoUrl: string;
+  audioUrl: string;
 };
 
 export type PlanetSettings = Record<PortalPermissionKey, PlanetSetting>;
