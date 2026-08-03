@@ -15,13 +15,206 @@ type LaunchState = {
   videoOver: boolean;
 };
 
+type SoundCloudProgress = {
+  relativePosition?: number;
+};
+
+type SoundCloudWidget = {
+  bind: (eventName: string, listener: (event?: SoundCloudProgress) => void) => void;
+  unbind: (eventName: string) => void;
+  play: () => void;
+  pause: () => void;
+  seekTo: (milliseconds: number) => void;
+  setVolume: (volume: number) => void;
+};
+
+type SoundCloudApi = {
+  Widget: ((iframe: HTMLIFrameElement) => SoundCloudWidget) & {
+    Events: {
+      READY: string;
+      FINISH: string;
+      PLAY_PROGRESS: string;
+    };
+  };
+};
+
+declare global {
+  interface Window {
+    SC?: SoundCloudApi;
+  }
+}
+
 const ARTWORK_SRC = '/assets/portal-solar-system-bg.mp4';
-const AMBIENT_AUDIO_SRC = '/assets/portal-ambient-soundtrack.mp3';
-const AMBIENT_VOLUME = 0.035;
-const DUCKED_AMBIENT_VOLUME = 0.008;
+const SOUNDTRACK_URL = 'https://soundcloud.com/epicmountain/how-to-kurzgesagt';
+const AMBIENT_VOLUME = 3;
+const DUCKED_AMBIENT_VOLUME = 1;
 const ARTWORK_LOOP_START_SECONDS = 0.08;
 const ARTWORK_CROSSFADE_SECONDS = 0.9;
 const ARTWORK_CROSSFADE_MS = 650;
+const AUDIO_FADE_MS = 900;
+
+function loadSoundCloudWidgetApi(): Promise<SoundCloudApi> {
+  if (window.SC) return Promise.resolve(window.SC);
+
+  return new Promise((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>('script[data-soundcloud-widget-api]');
+
+    const handleReady = () => {
+      if (window.SC) resolve(window.SC);
+      else reject(new Error('SoundCloud Widget API did not initialize.'));
+    };
+
+    if (existingScript) {
+      existingScript.addEventListener('load', handleReady, { once: true });
+      existingScript.addEventListener('error', () => reject(new Error('SoundCloud Widget API failed to load.')), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://w.soundcloud.com/player/api.js';
+    script.async = true;
+    script.dataset.soundcloudWidgetApi = 'true';
+    script.addEventListener('load', handleReady, { once: true });
+    script.addEventListener('error', () => reject(new Error('SoundCloud Widget API failed to load.')), { once: true });
+    document.head.appendChild(script);
+  });
+}
+
+function AmbientSoundtrack({ ducked }: { ducked: boolean }) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const widgetRef = useRef<SoundCloudWidget | null>(null);
+  const currentVolumeRef = useRef(0);
+  const targetVolumeRef = useRef(AMBIENT_VOLUME);
+  const fadeFrameRef = useRef(0);
+  const fadingForEndRef = useRef(false);
+
+  const fadeTo = (target: number, duration = AUDIO_FADE_MS) => {
+    const widget = widgetRef.current;
+    if (!widget) return;
+
+    window.cancelAnimationFrame(fadeFrameRef.current);
+    const startVolume = currentVolumeRef.current;
+    const startedAt = performance.now();
+
+    const step = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = progress * progress * (3 - 2 * progress);
+      const nextVolume = startVolume + (target - startVolume) * eased;
+      currentVolumeRef.current = nextVolume;
+      widget.setVolume(Math.max(0, Math.min(100, nextVolume)));
+
+      if (progress < 1) fadeFrameRef.current = window.requestAnimationFrame(step);
+    };
+
+    fadeFrameRef.current = window.requestAnimationFrame(step);
+  };
+
+  useEffect(() => {
+    targetVolumeRef.current = ducked ? DUCKED_AMBIENT_VOLUME : AMBIENT_VOLUME;
+    if (!fadingForEndRef.current) fadeTo(targetVolumeRef.current);
+  }, [ducked]);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    let disposed = false;
+    let widget: SoundCloudWidget | null = null;
+
+    const startPlayback = () => {
+      widget?.play();
+      if (!fadingForEndRef.current) fadeTo(targetVolumeRef.current, 1200);
+    };
+
+    const removeGestureListeners = () => {
+      document.removeEventListener('pointerdown', startPlayback, true);
+      document.removeEventListener('keydown', startPlayback, true);
+    };
+
+    void loadSoundCloudWidgetApi()
+      .then((api) => {
+        if (disposed) return;
+        widget = api.Widget(iframe);
+        widgetRef.current = widget;
+
+        widget.bind(api.Widget.Events.READY, () => {
+          currentVolumeRef.current = 0;
+          widget?.setVolume(0);
+          widget?.play();
+          fadeTo(targetVolumeRef.current, 1600);
+        });
+
+        widget.bind(api.Widget.Events.PLAY_PROGRESS, (event) => {
+          const relativePosition = event?.relativePosition ?? 0;
+          if (relativePosition > 0.985 && !fadingForEndRef.current) {
+            fadingForEndRef.current = true;
+            fadeTo(0, 2200);
+          }
+        });
+
+        widget.bind(api.Widget.Events.FINISH, () => {
+          widget?.seekTo(0);
+          widget?.play();
+          currentVolumeRef.current = 0;
+          widget?.setVolume(0);
+          fadingForEndRef.current = false;
+          fadeTo(targetVolumeRef.current, 2200);
+        });
+
+        document.addEventListener('pointerdown', startPlayback, true);
+        document.addEventListener('keydown', startPlayback, true);
+      })
+      .catch((error) => {
+        console.error('Ambient soundtrack could not initialize:', error);
+      });
+
+    return () => {
+      disposed = true;
+      removeGestureListeners();
+      window.cancelAnimationFrame(fadeFrameRef.current);
+      if (widget && window.SC) {
+        widget.unbind(window.SC.Widget.Events.READY);
+        widget.unbind(window.SC.Widget.Events.FINISH);
+        widget.unbind(window.SC.Widget.Events.PLAY_PROGRESS);
+      }
+      widget?.pause();
+      widgetRef.current = null;
+    };
+  }, []);
+
+  const widgetUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(SOUNDTRACK_URL)}&auto_play=true&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=false&single_active=false`;
+
+  return (
+    <>
+      <iframe
+        ref={iframeRef}
+        src={widgetUrl}
+        title="How To Kurzgesagt by Epic Mountain"
+        allow="autoplay"
+        aria-hidden="true"
+        tabIndex={-1}
+        style={{
+          position: 'fixed',
+          width: 1,
+          height: 1,
+          left: -9999,
+          top: -9999,
+          border: 0,
+          opacity: 0,
+          pointerEvents: 'none',
+        }}
+      />
+      <a
+        href={SOUNDTRACK_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="fixed bottom-2 right-3 z-30 text-[10px] text-white/25 transition-colors hover:text-white/55"
+      >
+        Music: Epic Mountain
+      </a>
+    </>
+  );
+}
 
 function SeamlessArtworkLoop() {
   const firstVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -183,7 +376,6 @@ export default function PortalMap() {
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const launchVideoRef = useRef<HTMLVideoElement | null>(null);
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
-  const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -220,49 +412,6 @@ export default function PortalMap() {
       mounted = false;
     };
   }, [authLoading]);
-
-  useEffect(() => {
-    const audio = ambientAudioRef.current;
-    if (!audio) return;
-
-    let hasStarted = false;
-    audio.volume = AMBIENT_VOLUME;
-
-    function removeGestureListeners() {
-      document.removeEventListener('pointerdown', startFromGesture, true);
-      document.removeEventListener('keydown', startFromGesture, true);
-    }
-
-    async function tryStart() {
-      if (hasStarted) return;
-      try {
-        await audio.play();
-        hasStarted = true;
-        removeGestureListeners();
-      } catch {
-        // Audible autoplay is commonly blocked until the first user interaction.
-      }
-    }
-
-    function startFromGesture() {
-      void tryStart();
-    }
-
-    document.addEventListener('pointerdown', startFromGesture, true);
-    document.addEventListener('keydown', startFromGesture, true);
-    void tryStart();
-
-    return () => {
-      removeGestureListeners();
-      audio.pause();
-    };
-  }, []);
-
-  useEffect(() => {
-    const audio = ambientAudioRef.current;
-    if (!audio) return;
-    audio.volume = launch && !launch.videoOver ? DUCKED_AMBIENT_VOLUME : AMBIENT_VOLUME;
-  }, [launch]);
 
   const openPortal = (planet: PortalDef) => {
     const conf = settings[planet.id as PortalPermissionKey];
@@ -384,7 +533,7 @@ export default function PortalMap() {
 
   return (
     <div className="portal-artwork-scene">
-      <audio ref={ambientAudioRef} src={AMBIENT_AUDIO_SRC} loop preload="auto" aria-hidden="true" />
+      <AmbientSoundtrack ducked={Boolean(launch && !launch.videoOver)} />
 
       <div
         style={{
