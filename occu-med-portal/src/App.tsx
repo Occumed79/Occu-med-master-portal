@@ -77,10 +77,10 @@ function OpeningVideo({ videoUrl, onDone }: { videoUrl: string; onDone: () => vo
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/admin" component={Admin} />
       <Route path="/login" component={Login} />
+      <Route path="/admin" component={Admin} />
       <Route path="/setup-account" component={SetupAccount} />
+      <Route path="/" component={Home} />
       <Route component={NotFound} />
     </Switch>
   );
