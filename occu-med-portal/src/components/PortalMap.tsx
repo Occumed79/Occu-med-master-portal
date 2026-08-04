@@ -11,7 +11,6 @@ type LaunchState = {
   audioUrl: string | null;
   label: string;
   glow: string;
-  videoOver: boolean;
 };
 
 type SoundCloudProgress = {
@@ -371,7 +370,9 @@ export default function PortalMap() {
   const [accessUsername, setAccessUsername] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [notice, setNotice] = useState('');
+  const [configError, setConfigError] = useState('');
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(false);
   const launchVideoRef = useRef<HTMLVideoElement | null>(null);
   const launchAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -382,6 +383,7 @@ export default function PortalMap() {
       if (authLoading) return;
       setIsLoadingConfig(true);
       setNotice('');
+      setConfigError('');
 
       try {
         const backendState = await loadPortalState();
@@ -398,7 +400,9 @@ export default function PortalMap() {
       } catch (error: unknown) {
         if (!mounted) return;
         const message = error instanceof Error ? error.message : 'Unknown backend error';
-        setNotice(`Portal backend could not be loaded: ${message}`);
+        const nextError = `Portal backend could not be loaded: ${message}`;
+        setConfigError(nextError);
+        setNotice(nextError);
       } finally {
         if (mounted) setIsLoadingConfig(false);
       }
@@ -424,7 +428,7 @@ export default function PortalMap() {
     const transitionAudio = conf.audioUrl?.trim() || fallbackAudioUrl.trim() || null;
 
     if (!transitionVideo) {
-      window.open(url, '_blank', 'noopener,noreferrer');
+      window.location.assign(url);
       return;
     }
 
@@ -434,7 +438,6 @@ export default function PortalMap() {
       audioUrl: transitionAudio,
       label: planet.label,
       glow: planet.glow,
-      videoOver: false,
     });
   };
 
@@ -442,25 +445,40 @@ export default function PortalMap() {
     event.preventDefault();
     if (!accessPlanet) return;
 
-    const username = normalizeUsername(accessUsername);
-    const codeDigest = await digestAccessCode(accessCode);
-    const matchedUser = users.find((entry) => entry.username === username && entry.codeDigest === codeDigest);
-
-    if (!matchedUser) {
-      setNotice('Invalid username or password.');
+    if (configError) {
+      setNotice(configError);
       return;
     }
 
-    if (!matchedUser.permissions.includes(accessPlanet.permissionKey)) {
-      setNotice(`This user does not have access to ${accessPlanet.label}.`);
-      return;
-    }
+    setIsCheckingAccess(true);
+    setNotice('');
 
-    const planet = accessPlanet;
-    setAccessPlanet(null);
-    setAccessUsername('');
-    setAccessCode('');
-    openPortal(planet);
+    try {
+      const username = normalizeUsername(accessUsername);
+      const codeDigest = await digestAccessCode(accessCode);
+      const matchedUser = users.find((entry) => entry.username === username && entry.codeDigest === codeDigest);
+
+      if (!matchedUser) {
+        setNotice('Invalid username or password.');
+        return;
+      }
+
+      if (!matchedUser.permissions.includes(accessPlanet.permissionKey)) {
+        setNotice(`This user does not have access to ${accessPlanet.label}.`);
+        return;
+      }
+
+      const planet = accessPlanet;
+      setAccessPlanet(null);
+      setAccessUsername('');
+      setAccessCode('');
+      openPortal(planet);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown access error';
+      setNotice(`Unable to verify portal access: ${message}`);
+    } finally {
+      setIsCheckingAccess(false);
+    }
   };
 
   const handlePlanetClick = (planet: PortalDef) => {
@@ -499,21 +517,15 @@ export default function PortalMap() {
   };
 
   const handleVideoEnd = () => {
-    stopLaunchAudio();
-    setLaunch((previousLaunch) => {
-      if (!previousLaunch) return null;
-      window.open(previousLaunch.targetUrl, '_blank', 'noopener,noreferrer');
-      return { ...previousLaunch, videoOver: true };
-    });
-  };
+    const targetUrl = launch?.targetUrl;
+    if (!targetUrl) return;
 
-  const handleLaunchClose = () => {
     stopLaunchAudio();
-    setLaunch(null);
+    window.location.assign(targetUrl);
   };
 
   useEffect(() => {
-    if (!launch || launch.videoOver) return;
+    if (!launch) return;
 
     const video = launchVideoRef.current;
     if (video) {
@@ -534,7 +546,7 @@ export default function PortalMap() {
 
   return (
     <div className="portal-artwork-scene">
-      <AmbientSoundtrack ducked={Boolean(launch && !launch.videoOver)} />
+      <AmbientSoundtrack ducked={Boolean(launch)} />
 
       <div
         style={{
@@ -601,7 +613,10 @@ export default function PortalMap() {
             <div className="mt-5 space-y-3">
               <input
                 value={accessUsername}
-                onChange={(event) => setAccessUsername(event.target.value)}
+                onChange={(event) => {
+                  setAccessUsername(event.target.value);
+                  if (!configError) setNotice('');
+                }}
                 placeholder="Username"
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-cyan-200/50"
                 autoFocus
@@ -610,15 +625,30 @@ export default function PortalMap() {
               <input
                 type="password"
                 value={accessCode}
-                onChange={(event) => setAccessCode(event.target.value)}
+                onChange={(event) => {
+                  setAccessCode(event.target.value);
+                  if (!configError) setNotice('');
+                }}
                 placeholder="Password/PIN"
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-cyan-200/50"
                 required
               />
             </div>
+            {(configError || notice) && (
+              <div
+                role="alert"
+                className="mt-4 rounded-xl border border-red-300/30 bg-red-500/15 px-3 py-2 text-sm text-red-100"
+              >
+                {configError || notice}
+              </div>
+            )}
             <div className="mt-5 flex gap-3">
-              <button type="submit" className="flex-1 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-cyan-100">
-                Open Portal
+              <button
+                type="submit"
+                disabled={isLoadingConfig || isCheckingAccess || Boolean(configError)}
+                className="flex-1 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {isCheckingAccess ? 'Checking...' : 'Open Portal'}
               </button>
               <button
                 type="button"
@@ -638,23 +668,22 @@ export default function PortalMap() {
 
       {launch && (
         <div className="portal-launch-overlay">
-          {!launch.videoOver && (
-            <div className="portal-launch-loading">
-              <div className="portal-launch-media">
-                <video
-                  ref={launchVideoRef}
-                  src={launch.videoUrl ?? undefined}
-                  autoPlay
-                  playsInline
-                  onEnded={handleVideoEnd}
-                  className="portal-launch-video"
-                />
-              </div>
-              {launch.audioUrl && <audio ref={launchAudioRef} src={launch.audioUrl} autoPlay />}
+          <div className="portal-launch-loading">
+            <div className="portal-launch-media">
+              <video
+                ref={launchVideoRef}
+                src={launch.videoUrl ?? undefined}
+                autoPlay
+                playsInline
+                onEnded={handleVideoEnd}
+                onError={handleVideoEnd}
+                className="portal-launch-video"
+              />
             </div>
-          )}
-          <button onClick={launch.videoOver ? handleLaunchClose : handleVideoEnd} className="portal-close-button">
-            {launch.videoOver ? 'Close' : 'Skip'}
+            {launch.audioUrl && <audio ref={launchAudioRef} src={launch.audioUrl} autoPlay />}
+          </div>
+          <button onClick={handleVideoEnd} className="portal-close-button">
+            Skip
           </button>
         </div>
       )}
