@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { PORTALS, type PortalDef, type PortalPermissionKey } from '@/lib/config';
 import { loadPortalState, type ManagedUser, type PlanetSettings } from '@/lib/portalBackend';
@@ -364,7 +363,6 @@ function mergeSettings(savedSettings?: Partial<PlanetSettings>): PlanetSettings 
 
 export default function PortalMap() {
   const { user, loading: authLoading, isAdmin } = useAuth();
-  const [, setLocation] = useLocation();
   const [settings, setSettings] = useState<PlanetSettings>(() => buildEmpty());
   const [fallbackAudioUrl, setFallbackAudioUrl] = useState('');
   const [launch, setLaunch] = useState<LaunchState | null>(null);
@@ -475,7 +473,10 @@ export default function PortalMap() {
       }
 
       if (!user) {
-        setLocation('/login?next=/admin');
+        // Leave the animated portal page completely before rendering the login
+        // screen. Safari can otherwise retain the portal's video/compositing
+        // layers during an SPA route change and paint the next view black.
+        window.location.assign('/login?next=/admin');
         return;
       }
 
@@ -484,7 +485,7 @@ export default function PortalMap() {
         return;
       }
 
-      setLocation('/admin');
+      window.location.assign('/admin');
       return;
     }
 
